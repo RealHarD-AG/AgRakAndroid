@@ -204,6 +204,32 @@ public class BotService extends Service {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         appendLog(acc.getId(), line);
+
+                        // Auto-response in Java as backup if console prompts for password or spawn
+                        if (acc.isAutoLogin()) {
+                            String lower = line.toLowerCase();
+                            if ((lower.contains("type response for [login]") || lower.contains("type response for"))
+                                    && acc.getPassword() != null && !acc.getPassword().isEmpty()) {
+                                try {
+                                    OutputStream os = process.getOutputStream();
+                                    os.write((acc.getPassword() + "\n").getBytes(StandardCharsets.UTF_8));
+                                    os.flush();
+                                    appendLog(acc.getId(), "[AGRak] 🔑 رمز عبور به صورت خودکار به دیالوگ لاگین ارسال شد.");
+                                } catch (Exception ex) {
+                                    Log.e(TAG, "Error auto-submitting password", ex);
+                                }
+                            } else if (lower.contains("write !spawn into the console")) {
+                                try {
+                                    Thread.sleep(600);
+                                    OutputStream os = process.getOutputStream();
+                                    os.write("!spawn\n".getBytes(StandardCharsets.UTF_8));
+                                    os.flush();
+                                    appendLog(acc.getId(), "[AGRak] 🚀 دستور !spawn خودکار ارسال شد.");
+                                } catch (Exception ex) {
+                                    Log.e(TAG, "Error auto-spawning", ex);
+                                }
+                            }
+                        }
                     }
                 } catch (Exception e) {
                     appendLog(acc.getId(), "[AGRak] پایان جریان خروجی ربات.");

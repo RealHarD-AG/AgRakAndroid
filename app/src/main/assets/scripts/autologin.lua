@@ -63,6 +63,12 @@ function onReceiveRPC(id, bs)
         local bTitleLength = bs:readUInt8()
         local szTitle = bs:readString(bTitleLength)
 
+        local bButton1Len = bs:readUInt8()
+        local szButton1 = (bButton1Len and bButton1Len > 0) and bs:readString(bButton1Len) or ""
+        local bButton2Len = bs:readUInt8()
+        local szButton2 = (bButton2Len and bButton2Len > 0) and bs:readString(bButton2Len) or ""
+        local szInfo = bs:readEncoded(512) or ""
+
         -- Handle stats dialog auto-close
         if szTitle and (szTitle:lower():find("stats") or szTitle:lower():find("status")) then
             print("[AutoStats] Stats dialog received. Auto-closing...")
@@ -83,21 +89,32 @@ function onReceiveRPC(id, bs)
             return false
         end
 
-        -- Check for login dialog (Dialog ID 2 or title containing login)
-        if AUTO_LOGIN_ENABLED and not hasAttemptedLogin and (wDialogID == 2 or (szTitle and szTitle:lower():find("login"))) then
-            hasAttemptedLogin = true
-            print(string.format("[AutoLogin] Login dialog (ID: %d) detected. Automatically sending password...", wDialogID))
-            
-            newTask(function()
-                wait(600)
-                sendDialogResponse(wDialogID, 1, 0, PASSWORD)
-                print("[AutoLogin] Password submitted successfully. Bot will remain in Sleep Mode (بدون اسپاون).")
+        -- Check for login dialog (Dialog ID 2 or 3 or title containing login, or password style 3, or button1 is Login)
+        local btn1Lower = (szButton1 and szButton1:lower()) or ""
+        local titleLower = (szTitle and szTitle:lower()) or ""
+        local isLogin = (wDialogID == 2 or wDialogID == 3 or bDialogStyle == 3 or titleLower:find("login") or btn1Lower == "login")
+        if isLogin then
+            if szInfo and szInfo:lower():find("doesn't match") then
+                print("[AutoLogin] ❌ خطا: سرور اعلام کرد رمز عبور اشتباه است (Password doesn't match your name)!")
+                print("[AutoLogin] لطفاً پسورد وارد شده در برنامه را با اکانت بازی خود بررسی و اصلاح کنید.")
+                return false
+            end
+
+            if AUTO_LOGIN_ENABLED and not hasAttemptedLogin and PASSWORD ~= "" then
+                hasAttemptedLogin = true
+                print(string.format("[AutoLogin] Login dialog (ID: %d, Style: %d) detected. Automatically sending password...", wDialogID, bDialogStyle))
                 
-                -- Wait for sleep state confirmation and update stats
-                wait(4000)
-                sendInput("/stats")
-            end)
-            return false
+                newTask(function()
+                    wait(500)
+                    sendDialogResponse(wDialogID, 1, 0, PASSWORD)
+                    print("[AutoLogin] Password submitted successfully. Bot will remain in Sleep Mode (بدون اسپاون).")
+                    
+                    -- Wait for sleep state confirmation and update stats
+                    wait(4000)
+                    sendInput("/stats")
+                end)
+                return false
+            end
         end
     end
 end
