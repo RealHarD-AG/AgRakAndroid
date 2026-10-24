@@ -110,7 +110,8 @@ public class BotService extends Service {
                 trimmed.contains("[AutoStats]") ||
                 trimmed.contains("[RakSAMP]") ||
                 trimmed.contains("[LUA]") ||
-                trimmed.contains("[NET]") ||
+                trimmed.contains("NET]") ||
+                trimmed.contains("HandleRPCPacket") ||
                 trimmed.contains("[STEP]") ||
                 trimmed.contains("[لاگ موتور]") ||
                 trimmed.contains("=================================") ||
@@ -502,11 +503,11 @@ public class BotService extends Service {
     private static void writeRakSAMPConfig(File xmlFile, String nickname) {
         String content = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                 "<RakSAMPClient console=\"1\" dialogs=\"console\" runmode=\"3\" autorun=\"0\" find=\"1\" select_classid=\"0\" manual_spawn=\"1\"\n" +
-                "               print_timestamps=\"1\" log_level=\"2\" chatcolor_rgb=\"0 0 130\" clientmsg_rgb=\"0 130 0\" cpalert_rgb=\"170 0 0\"\n" +
+                "               print_timestamps=\"1\" log_level=\"0\" chatcolor_rgb=\"0 0 130\" clientmsg_rgb=\"0 130 0\" cpalert_rgb=\"170 0 0\"\n" +
                 "               updatestats=\"1\" minfps=\"20\" maxfps=\"90\" clientversion=\"0.3.7\">\n" +
                 "    <server nickname=\"" + nickname + "\" password=\"\">185.112.33.99:7777</server>\n" +
                 "    <intervals spam=\"150\" fakekill=\"35\" lag=\"20\" joinflood=\"50\" chatflood=\"20\" classflood=\"30\" bulletflood=\"25\" />\n" +
-                "    <log level=\"2\" objects=\"0\" pickups=\"0\" textlabels=\"0\" textdraws=\"0\" />\n" +
+                "    <log level=\"0\" objects=\"0\" pickups=\"0\" textlabels=\"0\" textdraws=\"0\" />\n" +
                 "    <sendrates force=\"0\" onfoot=\"40\" incar=\"40\" firing=\"40\" multiplier=\"1\" />\n" +
                 "    <scripts>autologin</scripts>\n" +
                 "    <rates sleep=\"30\" connect=\"6000\" reconnect=\"3000\" network=\"0\" lua=\"50\" spectate=\"30\" />\n" +
