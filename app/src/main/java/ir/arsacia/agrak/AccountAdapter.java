@@ -5,6 +5,8 @@ import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -46,22 +48,44 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
 
         holder.tvAccountNick.setText("👤 " + acc.getNickname());
 
-        // Status styling
+        // Status styling with animated indicator dot
         switch (acc.getStatus()) {
             case ONLINE:
-                holder.tvStatus.setText("🟢 آنلاین");
+                holder.viewStatusDot.clearAnimation();
+                holder.viewStatusDot.setBackgroundResource(R.drawable.bg_dot_online);
+                startPulsingAnimation(holder.viewStatusDot, 650);
+
+                holder.tvStatus.setText("🟢 روشن (آنلاین)");
                 holder.tvStatus.setTextColor(Color.parseColor("#00E676"));
+
+                holder.switchConnect.setText("🟢 روشن");
+                holder.switchConnect.setTextColor(Color.parseColor("#00E676"));
                 holder.switchConnect.setChecked(true);
                 break;
+
             case CONNECTING:
+                holder.viewStatusDot.clearAnimation();
+                holder.viewStatusDot.setBackgroundResource(R.drawable.bg_dot_connecting);
+                startPulsingAnimation(holder.viewStatusDot, 350);
+
                 holder.tvStatus.setText("🟡 در حال اتصال...");
                 holder.tvStatus.setTextColor(Color.parseColor("#FFD600"));
+
+                holder.switchConnect.setText("🟡 در حال اتصال");
+                holder.switchConnect.setTextColor(Color.parseColor("#FFD600"));
                 holder.switchConnect.setChecked(true);
                 break;
+
             case OFFLINE:
             default:
-                holder.tvStatus.setText("🔴 آفلاین");
+                holder.viewStatusDot.clearAnimation();
+                holder.viewStatusDot.setBackgroundResource(R.drawable.bg_dot_offline);
+
+                holder.tvStatus.setText("🔴 خاموش (آفلاین)");
                 holder.tvStatus.setTextColor(Color.parseColor("#FF5252"));
+
+                holder.switchConnect.setText("🔴 خاموش");
+                holder.switchConnect.setTextColor(Color.parseColor("#FF5252"));
                 holder.switchConnect.setChecked(false);
                 break;
         }
@@ -77,11 +101,11 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
             holder.tvUptime.setText("مدت زمان: 00:00:00");
         }
 
-        // In-game stats
-        holder.tvStatLevel.setText("⭐ لول: " + acc.getLevel());
-        holder.tvStatRespect.setText("📊 رسپکت: " + acc.getRespect());
-        holder.tvStatRob.setText("💰 راب پوینت: " + acc.getRobPoints());
-        holder.tvStatEscape.setText("🔓 اسکیپ پوینت: " + acc.getEscapePoints());
+        // In-game stats with premium gaming emojis
+        holder.tvStatLevel.setText("👑 لول: " + acc.getLevel());
+        holder.tvStatRespect.setText("💎 رسپکت: " + acc.getRespect());
+        holder.tvStatRob.setText("🥷 راب پوینت: " + acc.getRobPoints());
+        holder.tvStatEscape.setText("⛓️‍💥 فرار از زندان: " + acc.getEscapePoints());
 
         // Listeners
         holder.switchConnect.setOnClickListener(v -> {
@@ -103,12 +127,21 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         });
     }
 
+    private void startPulsingAnimation(View view, int durationMs) {
+        Animation pulse = new AlphaAnimation(0.25f, 1.0f);
+        pulse.setDuration(durationMs);
+        pulse.setRepeatMode(Animation.REVERSE);
+        pulse.setRepeatCount(Animation.INFINITE);
+        view.startAnimation(pulse);
+    }
+
     @Override
     public int getItemCount() {
         return accounts.size();
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
+        View viewStatusDot;
         TextView tvAccountNick, tvStatus, tvUptime;
         TextView tvStatLevel, tvStatRespect, tvStatRob, tvStatEscape;
         SwitchCompat switchConnect;
@@ -117,6 +150,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
+            viewStatusDot = itemView.findViewById(R.id.viewStatusDot);
             tvAccountNick = itemView.findViewById(R.id.tvAccountNick);
             tvStatus = itemView.findViewById(R.id.tvStatus);
             tvUptime = itemView.findViewById(R.id.tvUptime);

@@ -69,12 +69,21 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+            <!-- Pulsing Status Dot -->
+            <View
+                android:id="@+id/viewStatusDot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_dot_online" />
+
             <!-- Status Indicator -->
             <TextView
                 android:id="@+id/tvStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🟢 آنلاین"
+                android:text="🟢 روشن (آنلاین)"
                 android:textColor="@color/status_green"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -117,7 +126,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="⭐ لول: --"
+                    android:text="👑 لول: --"
                     android:textColor="@color/accent_gold"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -127,8 +136,8 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="📊 رسپکت: --"
-                    android:textColor="#81D4FA"
+                    android:text="💎 رسپکت: --"
+                    android:textColor="#00E5FF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -136,7 +145,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="5dp"
                 android:orientation="horizontal">
 
                 <TextView
@@ -144,18 +153,20 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="💰 راب پوینت: --"
-                    android:textColor="#C8E6C9"
-                    android:textSize="12sp" />
+                    android:text="🥷 راب پوینت: --"
+                    android:textColor="#69F0AE"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvStatEscape"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="🔓 اسکیپ پوینت: --"
-                    android:textColor="#FFCCBC"
-                    android:textSize="12sp" />
+                    android:text="⛓️‍💥 فرار از زندان: --"
+                    android:textColor="#FF8A80"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
 
@@ -171,7 +182,7 @@
                 android:id="@+id/switchConnect"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="روشن / خاموش"
+                android:text="🟢 روشن"
                 android:textColor="@color/text_white"
                 android:textSize="12sp" />
 
