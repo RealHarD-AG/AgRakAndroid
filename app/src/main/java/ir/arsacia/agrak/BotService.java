@@ -14,6 +14,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -159,15 +160,17 @@ public class BotService extends Service {
             File luaDir = new File(botDir, "lua");
             luaDir.mkdirs();
 
-            // 1. Copy addon.lua
+            // 1. Copy addon.lua to both lua/ and scripts/
             copyAssetToFile(context, "lua/addon.lua", new File(luaDir, "addon.lua"));
             copyAssetToFile(context, "lua/addon.lua", new File(scriptsDir, "addon.lua"));
 
-            // 2. Prepare autologin.lua with account password
+            // 2. Prepare autologin.lua and write account_config.lua
+            writeAccountConfig(scriptsDir, acc);
             prepareAutologinScript(context, acc, new File(scriptsDir, "autologin.lua"));
 
             // 3. Write RakSAMPClient.xml (server join password must be empty for ArSaCiA)
-            writeRakSAMPConfig(botDir, nick);
+            File xmlFile = new File(botDir, "RakSAMPClient.xml");
+            writeRakSAMPConfig(xmlFile, nick);
 
             // 4. Resolve binary path
             String nativeDir = context.getApplicationInfo().nativeLibraryDir;
@@ -188,7 +191,11 @@ public class BotService extends Service {
 
             appendLog(acc.getId(), "[AGRak] در حال اجرای موتور راک‌سمپ با اینترنت گوشی...");
 
-            ProcessBuilder pb = new ProcessBuilder(binary.getAbsolutePath());
+            ProcessBuilder pb = new ProcessBuilder(
+                    binary.getAbsolutePath(),
+                    "--workdir", botDir.getAbsolutePath(),
+                    "--config", xmlFile.getAbsolutePath()
+            );
             pb.directory(botDir);
             pb.redirectErrorStream(true);
 
@@ -211,6 +218,7 @@ public class BotService extends Service {
                             if ((lower.contains("type response for [login]") || lower.contains("type response for"))
                                     && acc.getPassword() != null && !acc.getPassword().isEmpty()) {
                                 try {
+                                    Thread.sleep(300);
                                     OutputStream os = process.getOutputStream();
                                     os.write((acc.getPassword() + "\n").getBytes(StandardCharsets.UTF_8));
                                     os.flush();
@@ -289,8 +297,7 @@ public class BotService extends Service {
         }
     }
 
-    private static void writeRakSAMPConfig(File botDir, String nickname) {
-        File xmlFile = new File(botDir, "RakSAMPClient.xml");
+    private static void writeRakSAMPConfig(File xmlFile, String nickname) {
         String content = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                 "<RakSAMPClient console=\"1\" dialogs=\"console\" runmode=\"3\" autorun=\"0\" find=\"1\" select_classid=\"0\" manual_spawn=\"1\"\n" +
                 "               print_timestamps=\"1\" log_level=\"1\" chatcolor_rgb=\"0 0 130\" clientmsg_rgb=\"0 130 0\" cpalert_rgb=\"170 0 0\"\n" +
@@ -311,14 +318,34 @@ public class BotService extends Service {
         }
     }
 
+    private static void writeAccountConfig(File scriptsDir, AccountModel acc) {
+        File configFile = new File(scriptsDir, "account_config.lua");
+        String password = (acc != null && acc.getPassword() != null) ? acc.getPassword() : "";
+        boolean autoLogin = (acc != null && acc.isAutoLogin());
+        String escapedPass = password.replace("\\", "\\\\").replace("\"", "\\\"");
+
+        String content = "-- Auto-generated account config for AGRak\n" +
+                "PASSWORD = \"" + escapedPass + "\"\n" +
+                "AUTO_LOGIN_ENABLED = " + (autoLogin && !password.isEmpty() ? "true" : "false") + "\n";
+
+        try (FileOutputStream fos = new FileOutputStream(configFile)) {
+            fos.write(content.getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to write account_config.lua", e);
+        }
+    }
+
     private static void prepareAutologinScript(Context context, AccountModel acc, File destFile) {
         try {
-            String scriptContent;
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try (InputStream is = context.getAssets().open("scripts/autologin.lua")) {
-                byte[] buf = new byte[is.available()];
-                is.read(buf);
-                scriptContent = new String(buf, StandardCharsets.UTF_8);
+                byte[] buf = new byte[4096];
+                int r;
+                while ((r = is.read(buf)) != -1) {
+                    baos.write(buf, 0, r);
+                }
             }
+            String scriptContent = baos.toString("UTF-8");
             String password = (acc != null && acc.getPassword() != null) ? acc.getPassword() : "";
             boolean autoLogin = (acc != null && acc.isAutoLogin());
 
