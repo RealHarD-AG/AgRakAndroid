@@ -144,6 +144,37 @@ public class BotService extends Service {
         }).start();
     }
 
+    public static void startRemoteBot(String nickname, String password) {
+        if (nickname == null) return;
+        new Thread(() -> {
+            try {
+                String urlStr = REMOTE_SERVER_URL + "/api/start?nick=" + URLEncoder.encode(nickname, "UTF-8")
+                        + (password != null ? "&pass=" + URLEncoder.encode(password, "UTF-8") : "");
+                URL url = new URL(urlStr);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(2500);
+                conn.setReadTimeout(2500);
+                conn.setRequestMethod("POST");
+                conn.getResponseCode();
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
+    public static void stopRemoteBot(String nickname) {
+        if (nickname == null) return;
+        new Thread(() -> {
+            try {
+                String urlStr = REMOTE_SERVER_URL + "/api/stop?nick=" + URLEncoder.encode(nickname, "UTF-8");
+                URL url = new URL(urlStr);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(2500);
+                conn.setReadTimeout(2500);
+                conn.setRequestMethod("POST");
+                conn.getResponseCode();
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
     public static void sendRemoteCommand(String nickname, String cmd) {
         if (nickname == null || cmd == null) return;
         new Thread(() -> {

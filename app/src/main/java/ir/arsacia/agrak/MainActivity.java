@@ -198,6 +198,9 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
         BotService.appendLog(acc.getId(), "[AGRak] در حال برقراری ارتباط با سرور آرساکیا گیم (185.112.33.99:7777)...");
         BotService.appendLog(acc.getId(), "[AGRak] متصل شد. نام اکانت: " + acc.getNickname());
 
+        // Send remote start to VPS daemon
+        BotService.startRemoteBot(acc.getNickname(), acc.getPassword());
+
         // Automatically trigger !spawn and /stats upon connecting
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
             BotService.appendLog(acc.getId(), "> !spawn");
@@ -249,6 +252,7 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
 
     private void stopBot(AccountModel acc) {
         acc.setStatus(AccountModel.Status.OFFLINE);
+        BotService.stopRemoteBot(acc.getNickname());
         BotService.appendLog(acc.getId(), "[AGRak] اتصال از سرور قطع شد.");
     }
 
