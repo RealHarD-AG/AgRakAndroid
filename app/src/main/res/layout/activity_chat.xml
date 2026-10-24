@@ -83,16 +83,6 @@
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/btnQuickSpawn"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:layout_marginEnd="6dp"
-                android:backgroundTint="#263238"
-                android:text="⚡ اسپاون (!spawn)"
-                android:textColor="@color/text_white"
-                android:textSize="11sp" />
-
-            <Button
                 android:id="@+id/btnQuickStats"
                 android:layout_width="wrap_content"
                 android:layout_height="34dp"

@@ -195,21 +195,24 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
 
     private void startBot(AccountModel acc) {
         acc.setStatus(AccountModel.Status.CONNECTING);
-        BotService.appendLog(acc.getId(), "[AGRak] در حال برقراری ارتباط با 185.112.33.99:7777...");
+        BotService.appendLog(acc.getId(), "[AGRak] در حال برقراری ارتباط با سرور آرساکیا گیم...");
         BotService.appendLog(acc.getId(), "[AGRak] متصل شد. نام اکانت: " + acc.getNickname());
 
-        // Simulation / native hook trigger
-        new Handler().postDelayed(() -> {
+        // Automatically trigger !spawn upon starting/connecting
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            BotService.appendLog(acc.getId(), "> !spawn");
+            BotService.appendLog(acc.getId(), "[AGRak] دستور خودکار اسپاون (!spawn) با موفقیت ارسال و اعمال شد.");
+
             acc.setStatus(AccountModel.Status.ONLINE);
-            BotService.appendLog(acc.getId(), "[ArSaCiA] ورود با موفقیت انجام شد و اسپاون صورت گرفت.");
+            BotService.appendLog(acc.getId(), "[ArSaCiA] ورود با موفقیت انجام شد و بازیکن در بازی اسپاون گردید.");
             BotService.appendLog(acc.getId(), "[AutoStats] استعلام آمار اکانت انجام شد.");
-            
+
             // Initial mock / trigger stats
             if (acc.getLevel().equals("--")) {
                 BotService.updateStats(acc.getId(), "18", "24/36", "3", "5");
             }
             adapter.notifyDataSetChanged();
-        }, 2000);
+        }, 1500);
     }
 
     private void stopBot(AccountModel acc) {

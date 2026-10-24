@@ -31,7 +31,6 @@ public class ChatActivity extends AppCompatActivity {
         ImageButton btnBack = findViewById(R.id.btnBack);
         Button btnSend = findViewById(R.id.btnSendMessage);
 
-        Button btnSpawn = findViewById(R.id.btnQuickSpawn);
         Button btnStats = findViewById(R.id.btnQuickStats);
         Button btnReconnect = findViewById(R.id.btnQuickReconnect);
         Button btnSleep = findViewById(R.id.btnQuickSleep);
@@ -58,7 +57,6 @@ public class ChatActivity extends AppCompatActivity {
         });
 
         // Quick Command Shortcuts
-        btnSpawn.setOnClickListener(v -> sendCommand("!spawn"));
         btnStats.setOnClickListener(v -> sendCommand("/stats"));
         btnReconnect.setOnClickListener(v -> sendCommand("!reconnect"));
         btnSleep.setOnClickListener(v -> sendCommand("/sleep"));
