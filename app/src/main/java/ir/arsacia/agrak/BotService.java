@@ -230,23 +230,15 @@ public class BotService extends Service {
             File xmlFile = new File(botDir, "RakSAMPClient.xml");
             writeRakSAMPConfig(xmlFile, nick);
 
-            // 4. Resolve binary path
+            // 4. Resolve binary path from nativeLibraryDir
             String nativeDir = context.getApplicationInfo().nativeLibraryDir;
             File binary = new File(nativeDir, "libraksamp.so");
-            if (!binary.exists() || !binary.canExecute()) {
-                // Fallback copy to files dir
-                File fallbackBin = new File(context.getFilesDir(), "RakSAMPClient");
-                if (binary.exists()) {
-                    copyFile(binary, fallbackBin);
-                } else {
-                    String abi = Build.SUPPORTED_ABIS != null && Build.SUPPORTED_ABIS.length > 0 ? Build.SUPPORTED_ABIS[0] : "arm64-v8a";
-                    String assetPath = abi.contains("v7") ? "armeabi-v7a/libraksamp.so" : "arm64-v8a/libraksamp.so";
-                    copyAssetToFile(context, assetPath, fallbackBin);
-                }
-                fallbackBin.setExecutable(true, false);
-                binary = fallbackBin;
+            if (!binary.exists()) {
+                appendLog(acc.getId(), "[AGRak] ❌ فایل بومی libraksamp.so در مسیر " + nativeDir + " یافت نشد. لطفاً برنامه را مجدداً نصب فرمایید.");
+                return;
             }
 
+            appendLog(acc.getId(), "[AGRak] موتور بومی راک‌سمپ: " + binary.getAbsolutePath());
             appendLog(acc.getId(), "[AGRak] در حال اجرای موتور راک‌سمپ با اینترنت گوشی...");
 
             ProcessBuilder pb = new ProcessBuilder(
@@ -310,8 +302,12 @@ public class BotService extends Service {
                         }
                     }
                 } catch (Exception e) {
-                    appendLog(acc.getId(), "[AGRak] پایان جریان خروجی ربات.");
+                    appendLog(acc.getId(), "[AGRak] خطای خواندن جریان لاگ: " + e.getMessage());
                 } finally {
+                    try {
+                        int exitCode = process.waitFor();
+                        appendLog(acc.getId(), "[AGRak] پروسه راک‌سمپ با کد خروجی " + exitCode + " خاتمه یافت.");
+                    } catch (Exception ignored) {}
                     activeProcesses.remove(key);
                     appendLog(acc.getId(), "[AGRak] وضعیت اکانت: قطع اتصال (آفلاین).");
                 }
@@ -322,7 +318,7 @@ public class BotService extends Service {
 
         } catch (Exception e) {
             Log.e(TAG, "Error starting local bot", e);
-            appendLog(acc.getId(), "[AGRak] خطا در اجرای محلی ربات: " + e.getMessage());
+            appendLog(acc.getId(), "[AGRak] ❌ خطا در راه‌اندازی ربات: " + e.getClass().getSimpleName() + " - " + e.getMessage());
         }
     }
 

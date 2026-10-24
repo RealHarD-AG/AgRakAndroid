@@ -29,16 +29,39 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     private TextView tvEmptyAccounts;
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
+    private final java.util.Map<String, Long> startingBots = new java.util.concurrent.ConcurrentHashMap<>();
 
     private final Runnable timerRunnable = new Runnable() {
         @Override
         public void run() {
             boolean changed = false;
+            long now = System.currentTimeMillis();
+
             for (AccountModel acc : accounts) {
+                String key = acc.getNickname().toLowerCase();
                 boolean running = BotService.isBotRunning(acc.getNickname());
-                if (!running && acc.getStatus() == AccountModel.Status.ONLINE) {
-                    acc.setStatus(AccountModel.Status.OFFLINE);
-                    changed = true;
+
+                if (running) {
+                    startingBots.remove(key);
+                    if (acc.getStatus() != AccountModel.Status.ONLINE) {
+                        acc.setStatus(AccountModel.Status.ONLINE);
+                        changed = true;
+                    }
+                } else {
+                    Long startAttempt = startingBots.get(key);
+                    if (startAttempt != null && (now - startAttempt) < 7000) {
+                        // Still in grace period for process to spawn
+                        if (acc.getStatus() != AccountModel.Status.CONNECTING) {
+                            acc.setStatus(AccountModel.Status.CONNECTING);
+                            changed = true;
+                        }
+                    } else {
+                        startingBots.remove(key);
+                        if (acc.getStatus() != AccountModel.Status.OFFLINE) {
+                            acc.setStatus(AccountModel.Status.OFFLINE);
+                            changed = true;
+                        }
+                    }
                 }
 
                 // Sync stats from BotService cache
@@ -158,10 +181,19 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     protected void onResume() {
         super.onResume();
         // Check running status & sync cached stats
+        long now = System.currentTimeMillis();
         for (AccountModel acc : accounts) {
+            String key = acc.getNickname().toLowerCase();
             boolean running = BotService.isBotRunning(acc.getNickname());
-            if (!running && acc.getStatus() == AccountModel.Status.ONLINE) {
-                acc.setStatus(AccountModel.Status.OFFLINE);
+            if (running) {
+                startingBots.remove(key);
+                acc.setStatus(AccountModel.Status.ONLINE);
+            } else {
+                Long startAttempt = startingBots.get(key);
+                if (startAttempt == null || (now - startAttempt) >= 7000) {
+                    startingBots.remove(key);
+                    acc.setStatus(AccountModel.Status.OFFLINE);
+                }
             }
             String[] stats = BotService.getCachedStats(acc.getId());
             if (stats == null) {
@@ -262,7 +294,8 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     }
 
     private void startBot(AccountModel acc) {
-        acc.setStatus(AccountModel.Status.ONLINE);
+        startingBots.put(acc.getNickname().toLowerCase(), System.currentTimeMillis());
+        acc.setStatus(AccountModel.Status.CONNECTING);
         saveAccounts();
         adapter.notifyDataSetChanged();
 
@@ -271,6 +304,7 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     }
 
     private void stopBot(AccountModel acc) {
+        startingBots.remove(acc.getNickname().toLowerCase());
         acc.setStatus(AccountModel.Status.OFFLINE);
         saveAccounts();
         adapter.notifyDataSetChanged();
