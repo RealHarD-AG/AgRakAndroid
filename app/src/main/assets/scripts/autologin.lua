@@ -9,7 +9,14 @@ local function loadAccountConfig()
     local f = loadfile("scripts/account_config.lua") or loadfile("account_config.lua")
     if f then
         local ok, err = pcall(f)
-        if not ok then
+        if ok then
+            if _G.PASSWORD and _G.PASSWORD ~= "" then
+                PASSWORD = _G.PASSWORD
+            end
+            if _G.AUTO_LOGIN_ENABLED ~= nil then
+                AUTO_LOGIN_ENABLED = _G.AUTO_LOGIN_ENABLED
+            end
+        else
             print("[AutoLogin] Config warning: " .. tostring(err))
         end
     end
@@ -144,7 +151,7 @@ function onReceiveRPC(id, bs)
         end
 
         -- 3. Check for login dialog (Dialog ID 2 or 3 or title containing login, or password style 3)
-        local isLoginDialog = (wDialogID == 2 or wDialogID == 3 or titleLower:find("login") or bDialogStyle == 3)
+        local isLoginDialog = (wDialogID == 2 or wDialogID == 3 or bDialogStyle == 3 or titleLower:find("login") or titleLower:find("password") or titleLower:find("ramz") or titleLower:find("رمز") or titleLower:find("ورود"))
 
         if isLoginDialog and AUTO_LOGIN_ENABLED and PASSWORD ~= "" then
             if loginAttempts < 3 then

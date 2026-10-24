@@ -104,6 +104,25 @@ public class BotService extends Service {
         String trimmed = line.trim();
         if (trimmed.isEmpty()) return false;
 
+        // User outgoing command or message
+        if (trimmed.contains("📤 من:") || (trimmed.startsWith("> ") && !trimmed.startsWith("> /stats"))) {
+            return true;
+        }
+
+        // Key connection and state events to show in chat console
+        if (trimmed.contains("Connecting to ") ||
+                trimmed.contains("Connected to ") ||
+                trimmed.contains("Connected. Joining the game") ||
+                trimmed.contains("Account confirmed in Sleep Mode") ||
+                trimmed.contains("اسلیپ فعال است") ||
+                trimmed.contains("You have been spawned") ||
+                trimmed.contains("You are banned") ||
+                trimmed.contains("You were kicked") ||
+                trimmed.contains("Connection was closed") ||
+                trimmed.contains("Server closed the connection")) {
+            return true;
+        }
+
         // Filter out app and engine technical messages
         if (trimmed.startsWith("[AGRak]") ||
                 trimmed.contains("[AutoLogin]") ||
@@ -131,12 +150,21 @@ public class BotService extends Service {
             return false;
         }
 
-        // Must be SA:MP player chat, server client message, or user outgoing message
-        if (trimmed.contains("[CHAT]") || trimmed.contains("[CMSG]")) {
-            return true;
+        // Filter periodic stats dumps from the chat tab (they update the top stats cards)
+        if (trimmed.contains("*** [") && trimmed.contains(") ***")) return false;
+        if (trimmed.contains("Account: Sex [") ||
+                trimmed.contains("Activity: Level [") ||
+                trimmed.contains("Crimes: Status [") ||
+                trimmed.contains("Punishes: Mute [") ||
+                trimmed.contains("Resources: Gold [") ||
+                trimmed.contains("Inventory: Drugs [") ||
+                trimmed.contains("Faction: Faction [") ||
+                trimmed.contains("_______________________________________________")) {
+            return false;
         }
 
-        if (trimmed.contains("📤 من:") || trimmed.startsWith("> ")) {
+        // Must be SA:MP player chat or server client message
+        if (trimmed.contains("[CHAT]") || trimmed.contains("[CMSG]")) {
             return true;
         }
 
@@ -151,7 +179,9 @@ public class BotService extends Service {
                 lower.contains("tablighat") ||
                 lower.contains("paziraye tablighat") ||
                 lower.contains("besparesh dast ma") ||
-                lower.contains("nr [");
+                lower.contains("nr [") ||
+                lower.contains("nr:") ||
+                lower.contains("[sms]");
     }
 
     public static String formatIfServerChat(String line) {
@@ -178,6 +208,16 @@ public class BotService extends Service {
         } else if (formatted.startsWith("[CMSG]")) {
             String cmsgContent = formatted.substring(6).trim();
             return timePrefix + cmsgContent;
+        } else if (formatted.contains("Account confirmed in Sleep Mode") || formatted.contains("اسلیپ فعال است")) {
+            return timePrefix + "💤 [اسلیپ] اکانت با موفقیت در حالت اسلیپ تایید شد.";
+        } else if (formatted.startsWith("Connecting to")) {
+            return timePrefix + "🔄 [اتصال] در حال اتصال به سرور آرساکیا گیم...";
+        } else if (formatted.startsWith("Connected to") || formatted.startsWith("Connected.")) {
+            return timePrefix + "🟢 [اتصال] اتصال موفق به سرور آرساکیا گیم";
+        } else if (formatted.contains("spawned")) {
+            return timePrefix + "🎮 [بازی] ورود به بازی انجام شد.";
+        } else if (formatted.contains("kicked") || formatted.contains("closed the connection") || formatted.contains("banned")) {
+            return timePrefix + "🔴 [قطع] ارتباط با سرور قطع شد.";
         } else {
             return timePrefix + formatted;
         }
@@ -503,11 +543,11 @@ public class BotService extends Service {
     private static void writeRakSAMPConfig(File xmlFile, String nickname) {
         String content = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                 "<RakSAMPClient console=\"1\" dialogs=\"console\" runmode=\"3\" autorun=\"0\" find=\"1\" select_classid=\"0\" manual_spawn=\"1\"\n" +
-                "               print_timestamps=\"1\" log_level=\"0\" chatcolor_rgb=\"0 0 130\" clientmsg_rgb=\"0 130 0\" cpalert_rgb=\"170 0 0\"\n" +
+                "               print_timestamps=\"1\" log_level=\"1\" chatcolor_rgb=\"0 0 130\" clientmsg_rgb=\"0 130 0\" cpalert_rgb=\"170 0 0\"\n" +
                 "               updatestats=\"1\" minfps=\"20\" maxfps=\"90\" clientversion=\"0.3.7\">\n" +
                 "    <server nickname=\"" + nickname + "\" password=\"\">185.112.33.99:7777</server>\n" +
                 "    <intervals spam=\"150\" fakekill=\"35\" lag=\"20\" joinflood=\"50\" chatflood=\"20\" classflood=\"30\" bulletflood=\"25\" />\n" +
-                "    <log level=\"0\" objects=\"0\" pickups=\"0\" textlabels=\"0\" textdraws=\"0\" />\n" +
+                "    <log level=\"1\" objects=\"0\" pickups=\"0\" textlabels=\"0\" textdraws=\"0\" />\n" +
                 "    <sendrates force=\"0\" onfoot=\"40\" incar=\"40\" firing=\"40\" multiplier=\"1\" />\n" +
                 "    <scripts>autologin</scripts>\n" +
                 "    <rates sleep=\"30\" connect=\"6000\" reconnect=\"3000\" network=\"0\" lua=\"50\" spectate=\"30\" />\n" +
