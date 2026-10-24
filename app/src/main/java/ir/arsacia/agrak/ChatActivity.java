@@ -1,12 +1,15 @@
 package ir.arsacia.agrak;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+import java.util.List;
 
 public class ChatActivity extends AppCompatActivity {
 
@@ -15,6 +18,46 @@ public class ChatActivity extends AppCompatActivity {
     private TextView tvConsoleLogs;
     private ScrollView scrollConsole;
     private EditText etChatMessage;
+
+    private final Handler pollHandler = new Handler(Looper.getMainLooper());
+    private final Runnable pollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (accountNick != null) {
+                BotService.fetchRemoteLogsAsync(accountNick, (success, lines) -> {
+                    if (success && lines != null && !lines.isEmpty()) {
+                        runOnUiThread(() -> {
+                            StringBuilder full = new StringBuilder();
+                            for (String l : lines) {
+                                full.append(l).append("\n");
+                                if (accountId != null) {
+                                    BotService.parseLineForStats(accountId, l);
+                                }
+                            }
+                            tvConsoleLogs.setText(full.toString());
+                            scrollToBottom();
+                        });
+                    }
+                });
+            }
+            pollHandler.postDelayed(this, 2000);
+        }
+    };
+
+    private final BotService.LogCallback chatLogCallback = new BotService.LogCallback() {
+        @Override
+        public void onNewLog(String accId, String line) {
+            if (accountId != null && accountId.equals(accId)) {
+                runOnUiThread(() -> {
+                    tvConsoleLogs.append(line + "\n");
+                    scrollToBottom();
+                });
+            }
+        }
+
+        @Override
+        public void onStatsUpdated(String accId, String level, String respect, String rob, String escape) {}
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +80,7 @@ public class ChatActivity extends AppCompatActivity {
         tvName.setText("👤 " + (accountNick != null ? accountNick : "اکانت"));
         btnBack.setOnClickListener(v -> finish());
 
-        // Load existing logs
+        // Load existing local logs first
         if (accountId != null) {
             String logs = BotService.getLogsForAccount(accountId);
             if (!logs.isEmpty()) {
@@ -59,21 +102,25 @@ public class ChatActivity extends AppCompatActivity {
         btnReconnect.setOnClickListener(v -> sendCommand("!reconnect"));
         btnSleep.setOnClickListener(v -> sendCommand("/sleep"));
 
-        // Listen for new logs in real-time
-        BotService.setLogCallback(new BotService.LogCallback() {
-            @Override
-            public void onNewLog(String accId, String line) {
-                if (accountId != null && accountId.equals(accId)) {
-                    runOnUiThread(() -> {
-                        tvConsoleLogs.append(line + "\n");
-                        scrollToBottom();
-                    });
-                }
-            }
+        BotService.addLogCallback(chatLogCallback);
+    }
 
-            @Override
-            public void onStatsUpdated(String accId, String level, String respect, String rob, String escape) {}
-        });
+    @Override
+    protected void onResume() {
+        super.onResume();
+        pollHandler.post(pollRunnable);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        pollHandler.removeCallbacks(pollRunnable);
+    }
+
+    @Override
+    protected void onDestroy() {
+        BotService.removeLogCallback(chatLogCallback);
+        super.onDestroy();
     }
 
     private void sendCommand(String cmd) {

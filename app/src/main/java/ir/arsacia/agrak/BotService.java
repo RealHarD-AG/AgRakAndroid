@@ -12,16 +12,19 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,11 +38,28 @@ public class BotService extends Service {
         void onStatsUpdated(String accountId, String level, String respect, String rob, String escape);
     }
 
+    public static class RemoteAccount {
+        public String nick;
+        public boolean online;
+        public String level;
+        public String respect;
+        public String rob;
+        public String escape;
+    }
+
+    public interface RemoteAccountsListener {
+        void onResult(boolean success, List<RemoteAccount> accounts);
+    }
+
+    public interface RemoteLogsListener {
+        void onResult(boolean success, List<String> lines);
+    }
+
     public interface RemoteStatsListener {
         void onStatsResult(boolean success, String level, String respect, String rob, String escape, List<String> logs);
     }
 
-    private static LogCallback logCallback;
+    private static final List<LogCallback> logCallbacks = new CopyOnWriteArrayList<>();
     private static final Map<String, StringBuilder> accountLogs = Collections.synchronizedMap(new HashMap<>());
     private static final Map<String, String[]> cachedStats = Collections.synchronizedMap(new HashMap<>());
     private PowerManager.WakeLock wakeLock;
@@ -47,8 +67,23 @@ public class BotService extends Service {
     private static final Pattern PATTERN_LEVEL_RESPECT = Pattern.compile("Level\\s*\\[(\\d+)\\]\\s*Respect\\s*\\[([0-9/]+)\\]", Pattern.CASE_INSENSITIVE);
     private static final Pattern PATTERN_ROB_ESCAPE = Pattern.compile("Rob points\\s*\\[(\\d+)\\]\\s*Escape points\\s*\\[(\\d+)\\]", Pattern.CASE_INSENSITIVE);
 
+    public static void addLogCallback(LogCallback callback) {
+        if (callback != null && !logCallbacks.contains(callback)) {
+            logCallbacks.add(callback);
+        }
+    }
+
+    public static void removeLogCallback(LogCallback callback) {
+        if (callback != null) {
+            logCallbacks.remove(callback);
+        }
+    }
+
     public static void setLogCallback(LogCallback callback) {
-        logCallback = callback;
+        logCallbacks.clear();
+        if (callback != null) {
+            logCallbacks.add(callback);
+        }
     }
 
     public static String getLogsForAccount(String accountId) {
@@ -60,15 +95,16 @@ public class BotService extends Service {
         StringBuilder sb = accountLogs.computeIfAbsent(accountId, k -> new StringBuilder());
         sb.append(line).append("\n");
 
-        // Real-time automatic stats extraction from server chat/CMSG
         parseLineForStats(accountId, line);
 
-        if (logCallback != null) {
-            logCallback.onNewLog(accountId, line);
+        for (LogCallback cb : logCallbacks) {
+            try {
+                cb.onNewLog(accountId, line);
+            } catch (Exception ignored) {}
         }
     }
 
-    private static void parseLineForStats(String accountId, String line) {
+    public static void parseLineForStats(String accountId, String line) {
         if (line == null) return;
         String[] stats = cachedStats.computeIfAbsent(accountId, k -> new String[]{"--", "--", "--", "--"});
         boolean changed = false;
@@ -87,8 +123,12 @@ public class BotService extends Service {
             changed = true;
         }
 
-        if (changed && logCallback != null) {
-            logCallback.onStatsUpdated(accountId, stats[0], stats[1], stats[2], stats[3]);
+        if (changed) {
+            for (LogCallback cb : logCallbacks) {
+                try {
+                    cb.onStatsUpdated(accountId, stats[0], stats[1], stats[2], stats[3]);
+                } catch (Exception ignored) {}
+            }
         }
     }
 
@@ -99,9 +139,104 @@ public class BotService extends Service {
         stats[2] = rob;
         stats[3] = escape;
 
-        if (logCallback != null) {
-            logCallback.onStatsUpdated(accountId, level, respect, rob, escape);
+        for (LogCallback cb : logCallbacks) {
+            try {
+                cb.onStatsUpdated(accountId, level, respect, rob, escape);
+            } catch (Exception ignored) {}
         }
+    }
+
+    public static void fetchRemoteAccountsAsync(RemoteAccountsListener listener) {
+        new Thread(() -> {
+            try {
+                String urlStr = REMOTE_SERVER_URL + "/api/accounts";
+                URL url = new URL(urlStr);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(3000);
+                conn.setReadTimeout(3000);
+                conn.setRequestMethod("GET");
+
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    in.close();
+
+                    JSONObject obj = new JSONObject(sb.toString());
+                    if ("ok".equals(obj.optString("status"))) {
+                        JSONArray arr = obj.optJSONArray("accounts");
+                        List<RemoteAccount> list = new ArrayList<>();
+                        if (arr != null) {
+                            for (int i = 0; i < arr.length(); i++) {
+                                JSONObject accObj = arr.getJSONObject(i);
+                                RemoteAccount ra = new RemoteAccount();
+                                ra.nick = accObj.optString("nick", "");
+                                ra.online = accObj.optBoolean("online", false);
+                                ra.level = accObj.optString("level", "--");
+                                ra.respect = accObj.optString("respect", "--");
+                                ra.rob = accObj.optString("rob", "--");
+                                ra.escape = accObj.optString("escape", "--");
+                                list.add(ra);
+                            }
+                        }
+                        if (listener != null) {
+                            listener.onResult(true, list);
+                        }
+                        return;
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            if (listener != null) {
+                listener.onResult(false, Collections.emptyList());
+            }
+        }).start();
+    }
+
+    public static void fetchRemoteLogsAsync(String nickname, RemoteLogsListener listener) {
+        if (nickname == null) return;
+        new Thread(() -> {
+            try {
+                String urlStr = REMOTE_SERVER_URL + "/api/logs?nick=" + URLEncoder.encode(nickname, "UTF-8");
+                URL url = new URL(urlStr);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setConnectTimeout(3000);
+                conn.setReadTimeout(3000);
+                conn.setRequestMethod("GET");
+
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = in.readLine()) != null) {
+                        sb.append(line);
+                    }
+                    in.close();
+
+                    JSONObject obj = new JSONObject(sb.toString());
+                    if ("ok".equals(obj.optString("status"))) {
+                        JSONArray arr = obj.optJSONArray("lines");
+                        List<String> lines = new ArrayList<>();
+                        if (arr != null) {
+                            for (int i = 0; i < arr.length(); i++) {
+                                lines.add(arr.getString(i));
+                            }
+                        }
+                        if (listener != null) {
+                            listener.onResult(true, lines);
+                        }
+                        return;
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            if (listener != null) {
+                listener.onResult(false, Collections.emptyList());
+            }
+        }).start();
     }
 
     public static void fetchLiveStatsAsync(String nickname, RemoteStatsListener listener) {

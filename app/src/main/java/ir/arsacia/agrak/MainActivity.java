@@ -30,13 +30,44 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
 
+    private int syncCounter = 0;
     private final Runnable timerRunnable = new Runnable() {
         @Override
         public void run() {
             if (adapter != null) {
                 adapter.notifyDataSetChanged();
             }
+            syncCounter++;
+            if (syncCounter % 2 == 0) {
+                syncAccountsWithServer();
+            }
             timerHandler.postDelayed(this, 1000);
+        }
+    };
+
+    private final BotService.LogCallback mainLogCallback = new BotService.LogCallback() {
+        @Override
+        public void onNewLog(String accountId, String line) {}
+
+        @Override
+        public void onStatsUpdated(String accountId, String level, String respect, String rob, String escape) {
+            runOnUiThread(() -> {
+                boolean changed = false;
+                for (AccountModel acc : accounts) {
+                    if (acc.getId().equals(accountId)) {
+                        acc.setLevel(level);
+                        acc.setRespect(respect);
+                        acc.setRobPoints(rob);
+                        acc.setEscapePoints(escape);
+                        changed = true;
+                        break;
+                    }
+                }
+                if (changed) {
+                    saveAccounts();
+                    adapter.notifyDataSetChanged();
+                }
+            });
         }
     };
 
@@ -78,29 +109,53 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             Toast.makeText(this, "تمام اکانت‌ها قطع شدند", Toast.LENGTH_SHORT).show();
         });
 
-        // Register Log/Stats listener from BotService
-        BotService.setLogCallback(new BotService.LogCallback() {
-            @Override
-            public void onNewLog(String accountId, String line) {}
+        BotService.addLogCallback(mainLogCallback);
+        startBotService();
+        syncAccountsWithServer();
+    }
 
-            @Override
-            public void onStatsUpdated(String accountId, String level, String respect, String rob, String escape) {
-                runOnUiThread(() -> {
-                    for (AccountModel acc : accounts) {
-                        if (acc.getId().equals(accountId)) {
-                            acc.setLevel(level);
-                            acc.setRespect(respect);
-                            acc.setRobPoints(rob);
-                            acc.setEscapePoints(escape);
-                            adapter.notifyDataSetChanged();
+    private void syncAccountsWithServer() {
+        BotService.fetchRemoteAccountsAsync((success, remoteAccounts) -> {
+            if (!success || remoteAccounts == null) return;
+            runOnUiThread(() -> {
+                boolean changed = false;
+                for (AccountModel acc : accounts) {
+                    for (BotService.RemoteAccount ra : remoteAccounts) {
+                        if (acc.getNickname().equalsIgnoreCase(ra.nick)) {
+                            // Update live status
+                            AccountModel.Status newStatus = ra.online ? AccountModel.Status.ONLINE : AccountModel.Status.OFFLINE;
+                            if (acc.getStatus() != newStatus) {
+                                acc.setStatus(newStatus);
+                                changed = true;
+                            }
+
+                            // Update stats
+                            if (ra.level != null && !ra.level.equals("--") && !ra.level.equals(acc.getLevel())) {
+                                acc.setLevel(ra.level);
+                                changed = true;
+                            }
+                            if (ra.respect != null && !ra.respect.equals("--") && !ra.respect.equals(acc.getRespect())) {
+                                acc.setRespect(ra.respect);
+                                changed = true;
+                            }
+                            if (ra.rob != null && !ra.rob.equals("--") && !ra.rob.equals(acc.getRobPoints())) {
+                                acc.setRobPoints(ra.rob);
+                                changed = true;
+                            }
+                            if (ra.escape != null && !ra.escape.equals("--") && !ra.escape.equals(acc.getEscapePoints())) {
+                                acc.setEscapePoints(ra.escape);
+                                changed = true;
+                            }
                             break;
                         }
                     }
-                });
-            }
+                }
+                if (changed) {
+                    saveAccounts();
+                    adapter.notifyDataSetChanged();
+                }
+            });
         });
-
-        startBotService();
     }
 
     private void startBotService() {
@@ -116,12 +171,19 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     protected void onResume() {
         super.onResume();
         timerHandler.post(timerRunnable);
+        syncAccountsWithServer();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         timerHandler.removeCallbacks(timerRunnable);
+    }
+
+    @Override
+    protected void onDestroy() {
+        BotService.removeLogCallback(mainLogCallback);
+        super.onDestroy();
     }
 
     private void updateEmptyView() {
@@ -175,6 +237,7 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             saveAccounts();
             adapter.notifyDataSetChanged();
             updateEmptyView();
+            syncAccountsWithServer();
             dialog.dismiss();
             Toast.makeText(this, "اکانت با موفقیت ثبت شد", Toast.LENGTH_SHORT).show();
         });
@@ -195,6 +258,8 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
 
     private void startBot(AccountModel acc) {
         acc.setStatus(AccountModel.Status.CONNECTING);
+        adapter.notifyDataSetChanged();
+
         BotService.appendLog(acc.getId(), "[AGRak] در حال برقراری ارتباط با سرور آرساکیا گیم (185.112.33.99:7777)...");
         BotService.appendLog(acc.getId(), "[AGRak] متصل شد. نام اکانت: " + acc.getNickname());
 
@@ -217,6 +282,12 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             BotService.fetchLiveStatsAsync(acc.getNickname(), (success, level, respect, rob, escape, logs) -> {
                 runOnUiThread(() -> {
                     if (success && !level.equals("--")) {
+                        acc.setLevel(level);
+                        acc.setRespect(respect);
+                        acc.setRobPoints(rob);
+                        acc.setEscapePoints(escape);
+                        saveAccounts();
+
                         BotService.appendLog(acc.getId(), "[CMSG] Activity: Level [" + level + "] Respect [" + respect + "]");
                         BotService.appendLog(acc.getId(), "[CMSG] Resources: Rob points [" + rob + "] Escape points [" + escape + "]");
                         BotService.appendLog(acc.getId(), "[AutoStats] اطلاعات آمار واقعی از سرور دریافت و به‌روزرسانی شد.");
@@ -233,6 +304,8 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
 
     private void stopBot(AccountModel acc) {
         acc.setStatus(AccountModel.Status.OFFLINE);
+        saveAccounts();
+        adapter.notifyDataSetChanged();
         BotService.stopRemoteBot(acc.getNickname());
         BotService.appendLog(acc.getId(), "[AGRak] اتصال از سرور قطع شد.");
     }
@@ -272,10 +345,16 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             JSONArray arr = new JSONArray();
             for (AccountModel acc : accounts) {
                 JSONObject obj = new JSONObject();
+                obj.put("id", acc.getId());
                 obj.put("nick", acc.getNickname());
                 obj.put("pass", acc.getPassword());
                 obj.put("autoLogin", acc.isAutoLogin());
                 obj.put("antiAfk", acc.isAntiAfk());
+                obj.put("status", acc.getStatus().name());
+                obj.put("level", acc.getLevel());
+                obj.put("respect", acc.getRespect());
+                obj.put("rob", acc.getRobPoints());
+                obj.put("escape", acc.getEscapePoints());
                 arr.put(obj);
             }
             prefs.edit().putString("saved_accounts", arr.toString()).apply();
@@ -303,10 +382,21 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                             obj.optBoolean("autoLogin", true),
                             obj.optBoolean("antiAfk", true)
                     );
+                    if (obj.has("id")) {
+                        acc.setId(obj.getString("id"));
+                    }
+                    if (obj.has("status")) {
+                        try {
+                            acc.setStatus(AccountModel.Status.valueOf(obj.getString("status")));
+                        } catch (Exception ignored) {}
+                    }
+                    acc.setLevel(obj.optString("level", "--"));
+                    acc.setRespect(obj.optString("respect", "--"));
+                    acc.setRobPoints(obj.optString("rob", "--"));
+                    acc.setEscapePoints(obj.optString("escape", "--"));
                     accounts.add(acc);
                 }
             } catch (Exception ignored) {}
         }
-        // No default accounts: starts completely empty with 0 accounts
     }
 }
