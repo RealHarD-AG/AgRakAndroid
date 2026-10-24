@@ -69,21 +69,21 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <!-- Pulsing Status Dot -->
-            <View
-                android:id="@+id/viewStatusDot"
-                android:layout_width="10dp"
-                android:layout_height="10dp"
+            <!-- Animated Status 3D Icon -->
+            <ImageView
+                android:id="@+id/imgStatusIcon"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
                 android:layout_marginStart="2dp"
                 android:layout_marginEnd="6dp"
-                android:background="@drawable/bg_dot_online" />
+                android:src="@drawable/tg_online" />
 
             <!-- Status Indicator -->
             <TextView
                 android:id="@+id/tvStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🟢 روشن (آنلاین)"
+                android:text="روشن (آنلاین)"
                 android:textColor="@color/status_green"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -114,59 +114,119 @@
             android:layout_marginTop="10dp"
             android:background="@color/bg_dark"
             android:orientation="vertical"
-            android:padding="8dp">
+            android:padding="10dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/tvStatLevel"
+                <!-- Level Row -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="👑 لول: --"
-                    android:textColor="@color/accent_gold"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/tvStatRespect"
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginEnd="6dp"
+                        android:src="@drawable/tg_crown" />
+
+                    <TextView
+                        android:id="@+id/tvStatLevel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="لول: --"
+                        android:textColor="@color/accent_gold"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Respect Row -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="💎 رسپکت: --"
-                    android:textColor="#00E5FF"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginEnd="6dp"
+                        android:src="@drawable/tg_diamond" />
+
+                    <TextView
+                        android:id="@+id/tvStatRespect"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="رسپکت: --"
+                        android:textColor="#00E5FF"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
+                android:layout_marginTop="6dp"
                 android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/tvStatRob"
+                <!-- Rob Points Row -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="🥷 راب پوینت: --"
-                    android:textColor="#69F0AE"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <TextView
-                    android:id="@+id/tvStatEscape"
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginEnd="6dp"
+                        android:src="@drawable/tg_rob_badge" />
+
+                    <TextView
+                        android:id="@+id/tvStatRob"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="سرقت (راب): --"
+                        android:textColor="#69F0AE"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- Escape Points Row -->
+                <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="⛓️‍💥 فرار از زندان: --"
-                    android:textColor="#FF8A80"
-                    android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginEnd="6dp"
+                        android:src="@drawable/tg_escape_badge" />
+
+                    <TextView
+                        android:id="@+id/tvStatEscape"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="فرار از زندان: --"
+                        android:textColor="#FF8A80"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
@@ -178,11 +238,19 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
+            <ImageView
+                android:id="@+id/imgSwitchIcon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="6dp"
+                android:src="@drawable/tg_switch_on" />
+
             <androidx.appcompat.widget.SwitchCompat
                 android:id="@+id/switchConnect"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🟢 روشن"
+                android:text="روشن (فعال)"
                 android:textColor="@color/text_white"
                 android:textSize="12sp" />
 
