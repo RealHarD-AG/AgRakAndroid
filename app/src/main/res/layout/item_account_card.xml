@@ -133,11 +133,11 @@
                     android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:layout_marginStart="2dp"
                         android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_stat_level"
+                        android:src="@drawable/tg_level"
                         android:contentDescription="Level" />
 
                     <LinearLayout
@@ -176,11 +176,11 @@
                     android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:layout_marginStart="2dp"
                         android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_stat_respect"
+                        android:src="@drawable/tg_crown"
                         android:contentDescription="Respect" />
 
                     <LinearLayout
@@ -227,11 +227,11 @@
                     android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:layout_marginStart="2dp"
                         android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_stat_rob"
+                        android:src="@drawable/tg_rob_thief"
                         android:contentDescription="Rob Points" />
 
                     <LinearLayout
@@ -270,11 +270,11 @@
                     android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="20dp"
-                        android:layout_height="20dp"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:layout_marginStart="2dp"
                         android:layout_marginEnd="8dp"
-                        android:src="@drawable/ic_stat_escape"
+                        android:src="@drawable/tg_escape_jail"
                         android:contentDescription="Escape Points" />
 
                     <LinearLayout

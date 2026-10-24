@@ -1,15 +1,12 @@
 package ir.arsacia.agrak;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
-import java.util.List;
 
 public class ChatActivity extends AppCompatActivity {
 
@@ -18,31 +15,6 @@ public class ChatActivity extends AppCompatActivity {
     private TextView tvConsoleLogs;
     private ScrollView scrollConsole;
     private EditText etChatMessage;
-
-    private final Handler pollHandler = new Handler(Looper.getMainLooper());
-    private final Runnable pollRunnable = new Runnable() {
-        @Override
-        public void run() {
-            if (accountNick != null) {
-                BotService.fetchRemoteLogsAsync(accountNick, (success, lines) -> {
-                    if (success && lines != null && !lines.isEmpty()) {
-                        runOnUiThread(() -> {
-                            StringBuilder full = new StringBuilder();
-                            for (String l : lines) {
-                                full.append(l).append("\n");
-                                if (accountId != null) {
-                                    BotService.parseLineForStats(accountId, l);
-                                }
-                            }
-                            tvConsoleLogs.setText(full.toString());
-                            scrollToBottom();
-                        });
-                    }
-                });
-            }
-            pollHandler.postDelayed(this, 2000);
-        }
-    };
 
     private final BotService.LogCallback chatLogCallback = new BotService.LogCallback() {
         @Override
@@ -106,27 +78,14 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        pollHandler.post(pollRunnable);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        pollHandler.removeCallbacks(pollRunnable);
-    }
-
-    @Override
     protected void onDestroy() {
         BotService.removeLogCallback(chatLogCallback);
         super.onDestroy();
     }
 
     private void sendCommand(String cmd) {
-        if (accountId != null) {
-            BotService.appendLog(accountId, "> " + cmd);
-            BotService.sendRemoteCommand(accountNick, cmd);
+        if (accountNick != null) {
+            BotService.sendLocalCommand(accountNick, cmd);
             scrollToBottom();
         }
     }

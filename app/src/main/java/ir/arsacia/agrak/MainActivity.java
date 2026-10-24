@@ -30,16 +30,22 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     private final Handler timerHandler = new Handler(Looper.getMainLooper());
     private SharedPreferences prefs;
 
-    private int syncCounter = 0;
     private final Runnable timerRunnable = new Runnable() {
         @Override
         public void run() {
+            boolean changed = false;
+            for (AccountModel acc : accounts) {
+                boolean running = BotService.isBotRunning(acc.getNickname());
+                if (!running && acc.getStatus() == AccountModel.Status.ONLINE) {
+                    acc.setStatus(AccountModel.Status.OFFLINE);
+                    changed = true;
+                }
+            }
             if (adapter != null) {
                 adapter.notifyDataSetChanged();
             }
-            syncCounter++;
-            if (syncCounter % 2 == 0) {
-                syncAccountsWithServer();
+            if (changed) {
+                saveAccounts();
             }
             timerHandler.postDelayed(this, 1000);
         }
@@ -98,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                 startBot(acc);
             }
             adapter.notifyDataSetChanged();
-            Toast.makeText(this, "دستور اتصال تمام اکانت‌ها ارسال شد", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "اتصال تمام اکانت‌ها با اینترنت گوشی آغاز شد", Toast.LENGTH_SHORT).show();
         });
 
         btnStopAll.setOnClickListener(v -> {
@@ -111,51 +117,6 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
 
         BotService.addLogCallback(mainLogCallback);
         startBotService();
-        syncAccountsWithServer();
-    }
-
-    private void syncAccountsWithServer() {
-        BotService.fetchRemoteAccountsAsync((success, remoteAccounts) -> {
-            if (!success || remoteAccounts == null) return;
-            runOnUiThread(() -> {
-                boolean changed = false;
-                for (AccountModel acc : accounts) {
-                    for (BotService.RemoteAccount ra : remoteAccounts) {
-                        if (acc.getNickname().equalsIgnoreCase(ra.nick)) {
-                            // Update live status
-                            AccountModel.Status newStatus = ra.online ? AccountModel.Status.ONLINE : AccountModel.Status.OFFLINE;
-                            if (acc.getStatus() != newStatus) {
-                                acc.setStatus(newStatus);
-                                changed = true;
-                            }
-
-                            // Update stats
-                            if (ra.level != null && !ra.level.equals("--") && !ra.level.equals(acc.getLevel())) {
-                                acc.setLevel(ra.level);
-                                changed = true;
-                            }
-                            if (ra.respect != null && !ra.respect.equals("--") && !ra.respect.equals(acc.getRespect())) {
-                                acc.setRespect(ra.respect);
-                                changed = true;
-                            }
-                            if (ra.rob != null && !ra.rob.equals("--") && !ra.rob.equals(acc.getRobPoints())) {
-                                acc.setRobPoints(ra.rob);
-                                changed = true;
-                            }
-                            if (ra.escape != null && !ra.escape.equals("--") && !ra.escape.equals(acc.getEscapePoints())) {
-                                acc.setEscapePoints(ra.escape);
-                                changed = true;
-                            }
-                            break;
-                        }
-                    }
-                }
-                if (changed) {
-                    saveAccounts();
-                    adapter.notifyDataSetChanged();
-                }
-            });
-        });
     }
 
     private void startBotService() {
@@ -170,8 +131,17 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     @Override
     protected void onResume() {
         super.onResume();
+        // Check running status
+        for (AccountModel acc : accounts) {
+            boolean running = BotService.isBotRunning(acc.getNickname());
+            if (!running && acc.getStatus() == AccountModel.Status.ONLINE) {
+                acc.setStatus(AccountModel.Status.OFFLINE);
+            }
+        }
+        if (adapter != null) {
+            adapter.notifyDataSetChanged();
+        }
         timerHandler.post(timerRunnable);
-        syncAccountsWithServer();
     }
 
     @Override
@@ -237,7 +207,6 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             saveAccounts();
             adapter.notifyDataSetChanged();
             updateEmptyView();
-            syncAccountsWithServer();
             dialog.dismiss();
             Toast.makeText(this, "اکانت با موفقیت ثبت شد", Toast.LENGTH_SHORT).show();
         });
@@ -257,57 +226,21 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     }
 
     private void startBot(AccountModel acc) {
-        acc.setStatus(AccountModel.Status.CONNECTING);
+        acc.setStatus(AccountModel.Status.ONLINE);
+        saveAccounts();
         adapter.notifyDataSetChanged();
 
-        BotService.appendLog(acc.getId(), "[AGRak] در حال برقراری ارتباط با سرور آرساکیا گیم (185.112.33.99:7777)...");
-        BotService.appendLog(acc.getId(), "[AGRak] متصل شد. نام اکانت: " + acc.getNickname());
-
-        // Send remote start to VPS daemon
-        BotService.startRemoteBot(acc.getNickname(), acc.getPassword());
-
-        // Automatically trigger !spawn and /stats upon connecting
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            BotService.appendLog(acc.getId(), "> !spawn");
-            BotService.appendLog(acc.getId(), "[AGRak] دستور خودکار اسپاون (!spawn) با موفقیت ارسال و اعمال شد.");
-
-            acc.setStatus(AccountModel.Status.ONLINE);
-            BotService.appendLog(acc.getId(), "[ArSaCiA] ورود با موفقیت انجام شد و بازیکن در بازی اسپاون گردید.");
-
-            // Automatically request stats
-            BotService.appendLog(acc.getId(), "> /stats");
-            BotService.appendLog(acc.getId(), "[AGRak] استعلام خودکار آمار واقعی اکانت (/stats)...");
-
-            // Fetch live stats from server
-            BotService.fetchLiveStatsAsync(acc.getNickname(), (success, level, respect, rob, escape, logs) -> {
-                runOnUiThread(() -> {
-                    if (success && !level.equals("--")) {
-                        acc.setLevel(level);
-                        acc.setRespect(respect);
-                        acc.setRobPoints(rob);
-                        acc.setEscapePoints(escape);
-                        saveAccounts();
-
-                        BotService.appendLog(acc.getId(), "[CMSG] Activity: Level [" + level + "] Respect [" + respect + "]");
-                        BotService.appendLog(acc.getId(), "[CMSG] Resources: Rob points [" + rob + "] Escape points [" + escape + "]");
-                        BotService.appendLog(acc.getId(), "[AutoStats] اطلاعات آمار واقعی از سرور دریافت و به‌روزرسانی شد.");
-                        BotService.updateStats(acc.getId(), level, respect, rob, escape);
-                    } else {
-                        BotService.appendLog(acc.getId(), "[CMSG] *** " + acc.getNickname() + " ***");
-                        BotService.appendLog(acc.getId(), "[AutoStats] در حال استعلام اطلاعات آمار از سرور...");
-                    }
-                    adapter.notifyDataSetChanged();
-                });
-            });
-        }, 1500);
+        // Start local native RakSAMP on phone using phone network
+        BotService.startLocalBot(this, acc);
     }
 
     private void stopBot(AccountModel acc) {
         acc.setStatus(AccountModel.Status.OFFLINE);
         saveAccounts();
         adapter.notifyDataSetChanged();
-        BotService.stopRemoteBot(acc.getNickname());
-        BotService.appendLog(acc.getId(), "[AGRak] اتصال از سرور قطع شد.");
+
+        // Stop local native process
+        BotService.stopLocalBot(acc.getNickname());
     }
 
     @Override
@@ -364,12 +297,6 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     private void loadAccounts() {
         accounts.clear();
 
-        // Wipe old sample accounts from previous app versions on first run
-        if (!prefs.getBoolean("accounts_clean_v2", false)) {
-            prefs.edit().remove("saved_accounts").putBoolean("accounts_clean_v2", true).apply();
-            return;
-        }
-
         String json = prefs.getString("saved_accounts", null);
         if (json != null) {
             try {
@@ -385,11 +312,10 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                     if (obj.has("id")) {
                         acc.setId(obj.getString("id"));
                     }
-                    if (obj.has("status")) {
-                        try {
-                            acc.setStatus(AccountModel.Status.valueOf(obj.getString("status")));
-                        } catch (Exception ignored) {}
-                    }
+                    // Initial status is always OFFLINE unless process is currently running locally
+                    boolean isRunning = BotService.isBotRunning(acc.getNickname());
+                    acc.setStatus(isRunning ? AccountModel.Status.ONLINE : AccountModel.Status.OFFLINE);
+
                     acc.setLevel(obj.optString("level", "--"));
                     acc.setRespect(obj.optString("respect", "--"));
                     acc.setRobPoints(obj.optString("rob", "--"));
