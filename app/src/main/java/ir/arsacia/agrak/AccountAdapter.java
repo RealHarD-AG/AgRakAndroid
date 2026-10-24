@@ -7,13 +7,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
-import android.view.animation.AnimationSet;
-import android.view.animation.LinearInterpolator;
-import android.view.animation.RotateAnimation;
-import android.view.animation.ScaleAnimation;
 import android.widget.Button;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.SwitchCompat;
@@ -51,33 +46,31 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         AccountModel acc = accounts.get(position);
 
-        holder.tvAccountNick.setText("👤 " + acc.getNickname());
+        holder.tvAccountNick.setText(acc.getNickname());
 
-        // Status styling with animated 3D Telegram indicator
+        // Status styling with subtle animated LED dot
         switch (acc.getStatus()) {
             case ONLINE:
-                holder.imgStatusIcon.clearAnimation();
-                holder.imgStatusIcon.setImageResource(R.drawable.tg_online);
-                startBreathingPulse(holder.imgStatusIcon);
+                holder.viewStatusDot.clearAnimation();
+                holder.viewStatusDot.setBackgroundResource(R.drawable.bg_dot_online);
+                startPulsingAnimation(holder.viewStatusDot, 700);
 
-                holder.tvStatus.setText("روشن (آنلاین)");
+                holder.tvStatus.setText("آنلاین");
                 holder.tvStatus.setTextColor(Color.parseColor("#00E676"));
 
-                holder.imgSwitchIcon.setImageResource(R.drawable.tg_switch_on);
-                holder.switchConnect.setText("روشن (فعال)");
+                holder.switchConnect.setText("متصل");
                 holder.switchConnect.setTextColor(Color.parseColor("#00E676"));
                 holder.switchConnect.setChecked(true);
                 break;
 
             case CONNECTING:
-                holder.imgStatusIcon.clearAnimation();
-                holder.imgStatusIcon.setImageResource(R.drawable.tg_online);
-                startSpinAnimation(holder.imgStatusIcon);
+                holder.viewStatusDot.clearAnimation();
+                holder.viewStatusDot.setBackgroundResource(R.drawable.bg_dot_connecting);
+                startPulsingAnimation(holder.viewStatusDot, 350);
 
                 holder.tvStatus.setText("در حال اتصال...");
                 holder.tvStatus.setTextColor(Color.parseColor("#FFD600"));
 
-                holder.imgSwitchIcon.setImageResource(R.drawable.tg_switch_on);
                 holder.switchConnect.setText("در حال اتصال");
                 holder.switchConnect.setTextColor(Color.parseColor("#FFD600"));
                 holder.switchConnect.setChecked(true);
@@ -85,15 +78,14 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
 
             case OFFLINE:
             default:
-                holder.imgStatusIcon.clearAnimation();
-                holder.imgStatusIcon.setImageResource(R.drawable.tg_offline);
+                holder.viewStatusDot.clearAnimation();
+                holder.viewStatusDot.setBackgroundResource(R.drawable.bg_dot_offline);
 
-                holder.tvStatus.setText("خاموش (آفلاین)");
+                holder.tvStatus.setText("آفلاین");
                 holder.tvStatus.setTextColor(Color.parseColor("#FF5252"));
 
-                holder.imgSwitchIcon.setImageResource(R.drawable.tg_switch_off);
-                holder.switchConnect.setText("خاموش (غیرفعال)");
-                holder.switchConnect.setTextColor(Color.parseColor("#FF5252"));
+                holder.switchConnect.setText("غیرفعال");
+                holder.switchConnect.setTextColor(Color.parseColor("#8E95A5"));
                 holder.switchConnect.setChecked(false);
                 break;
         }
@@ -109,11 +101,11 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
             holder.tvUptime.setText("مدت زمان: 00:00:00");
         }
 
-        // In-game stats with Telegram Premium 3D custom badges
-        holder.tvStatLevel.setText("لول: " + acc.getLevel());
-        holder.tvStatRespect.setText("رسپکت: " + acc.getRespect());
-        holder.tvStatRob.setText("سرقت: " + acc.getRobPoints());
-        holder.tvStatEscape.setText("فرار: " + acc.getEscapePoints());
+        // Professional Metric Tile Values
+        holder.tvStatLevel.setText(acc.getLevel() != null && !acc.getLevel().isEmpty() ? acc.getLevel() : "--");
+        holder.tvStatRespect.setText(acc.getRespect() != null && !acc.getRespect().isEmpty() ? acc.getRespect() : "--");
+        holder.tvStatRob.setText(acc.getRobPoints() != null && !acc.getRobPoints().isEmpty() ? acc.getRobPoints() : "--");
+        holder.tvStatEscape.setText(acc.getEscapePoints() != null && !acc.getEscapePoints().isEmpty() ? acc.getEscapePoints() : "--");
 
         // Listeners
         holder.switchConnect.setOnClickListener(v -> {
@@ -135,31 +127,12 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         });
     }
 
-    private void startBreathingPulse(View view) {
-        AnimationSet set = new AnimationSet(true);
-        ScaleAnimation scale = new ScaleAnimation(0.85f, 1.15f, 0.85f, 1.15f,
-                Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
-        scale.setDuration(700);
-        scale.setRepeatMode(Animation.REVERSE);
-        scale.setRepeatCount(Animation.INFINITE);
-
-        AlphaAnimation alpha = new AlphaAnimation(0.6f, 1.0f);
-        alpha.setDuration(700);
-        alpha.setRepeatMode(Animation.REVERSE);
-        alpha.setRepeatCount(Animation.INFINITE);
-
-        set.addAnimation(scale);
-        set.addAnimation(alpha);
-        view.startAnimation(set);
-    }
-
-    private void startSpinAnimation(View view) {
-        RotateAnimation rotate = new RotateAnimation(0, 360,
-                Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
-        rotate.setDuration(900);
-        rotate.setRepeatCount(Animation.INFINITE);
-        rotate.setInterpolator(new LinearInterpolator());
-        view.startAnimation(rotate);
+    private void startPulsingAnimation(View view, int durationMs) {
+        Animation pulse = new AlphaAnimation(0.35f, 1.0f);
+        pulse.setDuration(durationMs);
+        pulse.setRepeatMode(Animation.REVERSE);
+        pulse.setRepeatCount(Animation.INFINITE);
+        view.startAnimation(pulse);
     }
 
     @Override
@@ -168,7 +141,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        ImageView imgStatusIcon, imgSwitchIcon;
+        View viewStatusDot;
         TextView tvAccountNick, tvStatus, tvUptime;
         TextView tvStatLevel, tvStatRespect, tvStatRob, tvStatEscape;
         SwitchCompat switchConnect;
@@ -177,8 +150,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            imgStatusIcon = itemView.findViewById(R.id.imgStatusIcon);
-            imgSwitchIcon = itemView.findViewById(R.id.imgSwitchIcon);
+            viewStatusDot = itemView.findViewById(R.id.viewStatusDot);
             tvAccountNick = itemView.findViewById(R.id.tvAccountNick);
             tvStatus = itemView.findViewById(R.id.tvStatus);
             tvUptime = itemView.findViewById(R.id.tvUptime);
