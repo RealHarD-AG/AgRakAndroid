@@ -113,6 +113,57 @@
         </LinearLayout>
     </HorizontalScrollView>
 
+    <!-- Filter Bar (Chat vs App Logs & SMS Filter) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#15171D"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp">
+
+        <Button
+            android:id="@+id/btnTabChat"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:backgroundTint="@color/primary_red"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="4dp"
+            android:text="💬 فقط چت سرور"
+            android:textColor="@color/text_white"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnTabLogs"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:backgroundTint="#242831"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="4dp"
+            android:text="📜 لاگ‌های برنامه"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+
+        <CheckBox
+            android:id="@+id/cbFilterSmsAds"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
+            android:checked="true"
+            android:buttonTint="@color/accent_gold"
+            android:text="حذف تبلیغ/SMS"
+            android:textColor="#E0E0E0"
+            android:textSize="10sp" />
+
+    </LinearLayout>
+
     <!-- Chat / Console Output Box -->
     <ScrollView
         android:id="@+id/scrollConsole"
@@ -131,7 +182,7 @@
             android:textSize="12sp"
             android:typeface="monospace"
             android:textIsSelectable="true"
-            android:text="[AGRak] در حال آماده‌سازی ارتباط با سرور آرساکیا...\n" />
+            android:text="💬 در حال انتظار برای دریافت چت و پیام‌های سرور آرساکیا...\n(پیام‌های سیستمی و زائد برنامه فیلتر شدند)\n" />
     </ScrollView>
 
     <!-- Bottom Message Input Row -->

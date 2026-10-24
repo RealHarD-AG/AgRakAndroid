@@ -17,10 +17,12 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -40,11 +42,13 @@ public class BotService extends Service {
 
     public interface LogCallback {
         void onNewLog(String accountId, String line);
+        default void onNewChat(String accountId, String line) {}
         void onStatsUpdated(String accountId, String level, String respect, String rob, String escape);
     }
 
     private static final List<LogCallback> logCallbacks = new CopyOnWriteArrayList<>();
     private static final Map<String, StringBuilder> accountLogs = Collections.synchronizedMap(new HashMap<>());
+    private static final Map<String, StringBuilder> accountChat = Collections.synchronizedMap(new HashMap<>());
     private static final Map<String, String[]> cachedStats = Collections.synchronizedMap(new HashMap<>());
 
     // Running local processes mapped by lowercase nickname
@@ -80,16 +84,125 @@ public class BotService extends Service {
         return sb != null ? sb.toString() : "";
     }
 
+    public static String getChatForAccount(String accountId) {
+        if (accountId == null) return "";
+        StringBuilder sb = accountChat.get(accountId);
+        return sb != null ? sb.toString() : "";
+    }
+
+    public static void appendChat(String accountId, String line) {
+        if (accountId == null || line == null) return;
+        StringBuilder sb = accountChat.computeIfAbsent(accountId, k -> new StringBuilder());
+        sb.append(line).append("\n");
+        if (sb.length() > 200000) {
+            sb.delete(0, 50000);
+        }
+    }
+
+    public static boolean isServerChatLine(String line) {
+        if (line == null) return false;
+        String trimmed = line.trim();
+        if (trimmed.isEmpty()) return false;
+
+        // Filter out app and engine technical messages
+        if (trimmed.startsWith("[AGRak]") ||
+                trimmed.contains("[AutoLogin]") ||
+                trimmed.contains("[AutoStats]") ||
+                trimmed.contains("[RakSAMP]") ||
+                trimmed.contains("[LUA]") ||
+                trimmed.contains("[NET]") ||
+                trimmed.contains("[STEP]") ||
+                trimmed.contains("[لاگ موتور]") ||
+                trimmed.contains("=================================") ||
+                trimmed.contains("Loading scripts") ||
+                trimmed.contains("autologin.lua") ||
+                trimmed.contains("========== DIALOG") ||
+                trimmed.contains("Type response for") ||
+                trimmed.contains("Choice:") ||
+                trimmed.startsWith("[1] ") ||
+                trimmed.contains("[GAMETEXT]") ||
+                trimmed.contains("[AUDIO_STREAM]") ||
+                trimmed.contains("[MENU") ||
+                trimmed.contains("[SELECTABLE-TEXTDRAW]") ||
+                trimmed.contains("[DESTROYPICKUP]") ||
+                trimmed.contains("[CP]") ||
+                trimmed.startsWith("> /stats")) {
+            return false;
+        }
+
+        // Must be SA:MP player chat, server client message, or user outgoing message
+        if (trimmed.contains("[CHAT]") || trimmed.contains("[CMSG]")) {
+            return true;
+        }
+
+        if (trimmed.contains("📤 من:") || trimmed.startsWith("> ")) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static boolean isSmsAd(String line) {
+        if (line == null) return false;
+        String lower = line.toLowerCase();
+        return lower.contains("/sms") ||
+                lower.contains("tablighate") ||
+                lower.contains("tablighat") ||
+                lower.contains("paziraye tablighat") ||
+                lower.contains("besparesh dast ma") ||
+                lower.contains("nr [");
+    }
+
+    public static String formatIfServerChat(String line) {
+        if (!isServerChatLine(line)) return null;
+
+        String formatted = line.trim();
+
+        // Extract timestamp [HH:MM:SS.mmm] or [HH:MM:SS]
+        String timePrefix = "";
+        int timeEnd = formatted.indexOf("] ");
+        if (formatted.startsWith("[") && timeEnd > 0 && timeEnd <= 15) {
+            String rawTime = formatted.substring(1, timeEnd);
+            int dotIdx = rawTime.indexOf('.');
+            if (dotIdx > 0) {
+                rawTime = rawTime.substring(0, dotIdx);
+            }
+            timePrefix = "[" + rawTime + "] ";
+            formatted = formatted.substring(timeEnd + 2).trim();
+        }
+
+        if (formatted.startsWith("[CHAT]")) {
+            String chatContent = formatted.substring(6).trim();
+            return timePrefix + "[چت] " + chatContent;
+        } else if (formatted.startsWith("[CMSG]")) {
+            String cmsgContent = formatted.substring(6).trim();
+            return timePrefix + cmsgContent;
+        } else {
+            return timePrefix + formatted;
+        }
+    }
+
     public static void appendLog(String accountId, String line) {
         if (accountId == null || line == null) return;
         StringBuilder sb = accountLogs.computeIfAbsent(accountId, k -> new StringBuilder());
         sb.append(line).append("\n");
+        if (sb.length() > 200000) {
+            sb.delete(0, 50000);
+        }
 
         parseLineForStats(accountId, line);
+
+        String cleanChat = formatIfServerChat(line);
+        if (cleanChat != null) {
+            appendChat(accountId, cleanChat);
+        }
 
         for (LogCallback cb : logCallbacks) {
             try {
                 cb.onNewLog(accountId, line);
+                if (cleanChat != null) {
+                    cb.onNewChat(accountId, cleanChat);
+                }
             } catch (Exception ignored) {}
         }
     }
@@ -168,7 +281,7 @@ public class BotService extends Service {
     public static void scheduleCommand(String nickname, String cmd, int delaySeconds) {
         if (nickname == null || cmd == null) return;
         try {
-            scheduler.schedule(() -> sendLocalCommand(nickname, cmd), delaySeconds, TimeUnit.SECONDS);
+            scheduler.schedule(() -> sendLocalCommand(nickname, cmd, false), delaySeconds, TimeUnit.SECONDS);
         } catch (Exception ignored) {}
     }
 
@@ -224,6 +337,7 @@ public class BotService extends Service {
 
             // 2. Prepare autologin.lua and write account_config.lua
             writeAccountConfig(scriptsDir, acc);
+            writeAccountConfig(botDir, acc);
             prepareAutologinScript(context, acc, new File(scriptsDir, "autologin.lua"));
 
             // 3. Write RakSAMPClient.xml (server join password must be empty for ArSaCiA)
@@ -307,6 +421,22 @@ public class BotService extends Service {
                     try {
                         int exitCode = process.waitFor();
                         appendLog(acc.getId(), "[AGRak] پروسه راک‌سمپ با کد خروجی " + exitCode + " خاتمه یافت.");
+                        if (exitCode != 0) {
+                            File crashLog = new File(botDir, "RakSAMPClient.log");
+                            if (crashLog.exists() && crashLog.length() > 0) {
+                                try (BufferedReader cr = new BufferedReader(new FileReader(crashLog))) {
+                                    String cl;
+                                    List<String> lastLines = new ArrayList<>();
+                                    while ((cl = cr.readLine()) != null) {
+                                        lastLines.add(cl);
+                                        if (lastLines.size() > 35) lastLines.remove(0);
+                                    }
+                                    for (String l : lastLines) {
+                                        appendLog(acc.getId(), "[لاگ موتور] " + l);
+                                    }
+                                } catch (Exception ignored) {}
+                            }
+                        }
                     } catch (Exception ignored) {}
                     activeProcesses.remove(key);
                     appendLog(acc.getId(), "[AGRak] وضعیت اکانت: قطع اتصال (آفلاین).");
@@ -345,6 +475,10 @@ public class BotService extends Service {
     }
 
     public static void sendLocalCommand(String nickname, String cmd) {
+        sendLocalCommand(nickname, cmd, false);
+    }
+
+    public static void sendLocalCommand(String nickname, String cmd, boolean logToConsole) {
         if (nickname == null || cmd == null) return;
         String key = nickname.toLowerCase();
         Process proc = activeProcesses.get(key);
@@ -353,9 +487,11 @@ public class BotService extends Service {
                 OutputStream os = proc.getOutputStream();
                 os.write((cmd + "\n").getBytes(StandardCharsets.UTF_8));
                 os.flush();
-                String accId = nickToAccountId.get(key);
-                if (accId != null) {
-                    appendLog(accId, "> " + cmd);
+                if (logToConsole) {
+                    String accId = nickToAccountId.get(key);
+                    if (accId != null) {
+                        appendLog(accId, "> " + cmd);
+                    }
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error sending command", e);
@@ -366,11 +502,11 @@ public class BotService extends Service {
     private static void writeRakSAMPConfig(File xmlFile, String nickname) {
         String content = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
                 "<RakSAMPClient console=\"1\" dialogs=\"console\" runmode=\"3\" autorun=\"0\" find=\"1\" select_classid=\"0\" manual_spawn=\"1\"\n" +
-                "               print_timestamps=\"1\" log_level=\"1\" chatcolor_rgb=\"0 0 130\" clientmsg_rgb=\"0 130 0\" cpalert_rgb=\"170 0 0\"\n" +
+                "               print_timestamps=\"1\" log_level=\"2\" chatcolor_rgb=\"0 0 130\" clientmsg_rgb=\"0 130 0\" cpalert_rgb=\"170 0 0\"\n" +
                 "               updatestats=\"1\" minfps=\"20\" maxfps=\"90\" clientversion=\"0.3.7\">\n" +
                 "    <server nickname=\"" + nickname + "\" password=\"\">185.112.33.99:7777</server>\n" +
                 "    <intervals spam=\"150\" fakekill=\"35\" lag=\"20\" joinflood=\"50\" chatflood=\"20\" classflood=\"30\" bulletflood=\"25\" />\n" +
-                "    <log level=\"1\" objects=\"0\" pickups=\"0\" textlabels=\"0\" textdraws=\"0\" />\n" +
+                "    <log level=\"2\" objects=\"0\" pickups=\"0\" textlabels=\"0\" textdraws=\"0\" />\n" +
                 "    <sendrates force=\"0\" onfoot=\"40\" incar=\"40\" firing=\"40\" multiplier=\"1\" />\n" +
                 "    <scripts>autologin</scripts>\n" +
                 "    <rates sleep=\"30\" connect=\"6000\" reconnect=\"3000\" network=\"0\" lua=\"50\" spectate=\"30\" />\n" +
@@ -465,11 +601,11 @@ public class BotService extends Service {
         acquireWakeLock();
         startForeground(NOTIFICATION_ID, createNotification("سرویس داخلی راک‌سمپ AGRak آماده است"));
 
-        // Periodically refresh stats every 90 seconds for all active bots
+        // Periodically refresh stats every 90 seconds for all active bots (silent)
         scheduler.scheduleWithFixedDelay(() -> {
             try {
                 for (String activeNick : activeProcesses.keySet()) {
-                    sendLocalCommand(activeNick, "/stats");
+                    sendLocalCommand(activeNick, "/stats", false);
                 }
             } catch (Exception ignored) {}
         }, 30, 90, TimeUnit.SECONDS);
