@@ -15,6 +15,7 @@ end)
 local hasAttemptedLogin = false
 local isReconnecting = false
 local loginAttempts = 0
+local statsLoopActive = false
 
 function onLoad()
     print("[AutoLogin] Script active. Auto-login enabled (Pure Sleep Mode / اسلیپ دائم).")
@@ -24,7 +25,41 @@ function onDisconnect()
     hasAttemptedLogin = false
     isReconnecting = false
     loginAttempts = 0
+    statsLoopActive = false
     print("[AutoLogin] Disconnected from server. Session reset.")
+end
+
+local function requestStats(delayMs)
+    newTask(function()
+        if delayMs and delayMs > 0 then
+            wait(delayMs)
+        end
+        if not isReconnecting then
+            print("[AutoStats] Sending /stats to update account metrics...")
+            sendInput("/stats")
+        end
+    end)
+end
+
+local function startStatsLoop()
+    if statsLoopActive then return end
+    statsLoopActive = true
+    newTask(function()
+        -- Initial stats request after server settles in game
+        wait(3500)
+        if not isReconnecting then
+            print("[AutoStats] Initial in-game stats query (/stats)...")
+            sendInput("/stats")
+        end
+
+        -- Ongoing periodic refresh every 90 seconds
+        while statsLoopActive do
+            wait(90000)
+            if not isReconnecting then
+                sendInput("/stats")
+            end
+        end
+    end)
 end
 
 function onPrintLog(text)
@@ -32,8 +67,15 @@ function onPrintLog(text)
 
     local lower = text:lower()
 
-    if lower:find("put to sleep") or lower:find("using raksamp") then
+    if lower:find("put to sleep") or lower:find("using raksamp") or lower:find("welcome ") then
         print("[AutoLogin] >>> Account confirmed in Sleep Mode (اسلیپ فعال است).")
+        startStatsLoop()
+    end
+
+    -- If server says dialog is open when command executed, retry in 4s
+    if lower:find("can't execute commands when a dialog is shown") or lower:find("dialog is shown up") then
+        print("[AutoStats] Dialog is open. Retrying /stats in 4s...")
+        requestStats(4000)
     end
 
     -- Reconnect trigger on server kick, disconnect, or notice
@@ -72,19 +114,22 @@ function onReceiveRPC(id, bs)
         local bDialogStyle = bs:readUInt8()
         local bTitleLength = bs:readUInt8()
         local szTitle = (bTitleLength and bTitleLength > 0) and bs:readString(bTitleLength) or ""
+        local titleLower = (szTitle and szTitle:lower()) or ""
 
-        -- 1. Handle launcher warning or notice dialog (ID 1 or launcher/notice)
-        if wDialogID == 1 or (szTitle and (szTitle:lower():find("launcher") or szTitle:lower():find("notice") or szTitle:lower():find("warning"))) then
+        -- 1. Handle launcher warning or notice dialog (ID 1 or launcher/notice/warning)
+        if wDialogID == 1 or titleLower:find("launcher") or titleLower:find("notice") or titleLower:find("warning") then
             print(string.format("[AutoLogin] Notice/Launcher dialog (ID: %d) received. Auto-confirming...", wDialogID))
             newTask(function()
                 wait(500)
                 sendDialogResponse(wDialogID, 1, 0, "")
+                -- Once dismissed, request stats after 2.5s
+                requestStats(2500)
             end)
             return false
         end
 
         -- 2. Handle stats dialog auto-close
-        if szTitle and (szTitle:lower():find("stats") or szTitle:lower():find("status")) then
+        if titleLower:find("stats") or titleLower:find("status") then
             print("[AutoStats] Stats dialog received. Auto-closing...")
             newTask(function()
                 wait(500)
@@ -94,7 +139,6 @@ function onReceiveRPC(id, bs)
         end
 
         -- 3. Check for login dialog (Dialog ID 2 or 3 or title containing login, or password style 3)
-        local titleLower = (szTitle and szTitle:lower()) or ""
         local isLoginDialog = (wDialogID == 2 or wDialogID == 3 or titleLower:find("login") or bDialogStyle == 3)
 
         if isLoginDialog and AUTO_LOGIN_ENABLED and PASSWORD ~= "" then
@@ -108,9 +152,8 @@ function onReceiveRPC(id, bs)
                     sendDialogResponse(wDialogID, 1, 0, PASSWORD)
                     print("[AutoLogin] Password submitted successfully. Bot will remain in Sleep Mode (بدون اسپاون).")
 
-                    -- Wait for sleep state confirmation and update stats once
-                    wait(4000)
-                    sendInput("/stats")
+                    -- Backup stats request after login sequence completes (15s)
+                    requestStats(15000)
                 end)
                 return false
             else

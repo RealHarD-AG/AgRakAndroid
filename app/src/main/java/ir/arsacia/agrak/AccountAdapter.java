@@ -107,6 +107,15 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         holder.tvStatRob.setText(acc.getRobPoints() != null && !acc.getRobPoints().isEmpty() ? acc.getRobPoints() : "--");
         holder.tvStatEscape.setText(acc.getEscapePoints() != null && !acc.getEscapePoints().isEmpty() ? acc.getEscapePoints() : "--");
 
+        if (holder.layoutStats != null) {
+            holder.layoutStats.setOnClickListener(v -> {
+                if (acc.getStatus() == AccountModel.Status.ONLINE) {
+                    BotService.sendLocalCommand(acc.getNickname(), "/stats");
+                    android.widget.Toast.makeText(context, "در حال استعلام آمار اکانت...", android.widget.Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
         // Listeners
         holder.switchConnect.setOnClickListener(v -> {
             if (listener != null) {
@@ -141,7 +150,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        View viewStatusDot;
+        View viewStatusDot, layoutStats;
         TextView tvAccountNick, tvStatus, tvUptime;
         TextView tvStatLevel, tvStatRespect, tvStatRob, tvStatEscape;
         SwitchCompat switchConnect;
@@ -151,6 +160,7 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             viewStatusDot = itemView.findViewById(R.id.viewStatusDot);
+            layoutStats = itemView.findViewById(R.id.layoutStats);
             tvAccountNick = itemView.findViewById(R.id.tvAccountNick);
             tvStatus = itemView.findViewById(R.id.tvStatus);
             tvUptime = itemView.findViewById(R.id.tvUptime);

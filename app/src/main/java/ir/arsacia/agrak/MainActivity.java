@@ -40,6 +40,30 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                     acc.setStatus(AccountModel.Status.OFFLINE);
                     changed = true;
                 }
+
+                // Sync stats from BotService cache
+                String[] stats = BotService.getCachedStats(acc.getId());
+                if (stats == null) {
+                    stats = BotService.getCachedStats(acc.getNickname());
+                }
+                if (stats != null) {
+                    if (!"--".equals(stats[0]) && !stats[0].equals(acc.getLevel())) {
+                        acc.setLevel(stats[0]);
+                        changed = true;
+                    }
+                    if (!"--".equals(stats[1]) && !stats[1].equals(acc.getRespect())) {
+                        acc.setRespect(stats[1]);
+                        changed = true;
+                    }
+                    if (!"--".equals(stats[2]) && !stats[2].equals(acc.getRobPoints())) {
+                        acc.setRobPoints(stats[2]);
+                        changed = true;
+                    }
+                    if (!"--".equals(stats[3]) && !stats[3].equals(acc.getEscapePoints())) {
+                        acc.setEscapePoints(stats[3]);
+                        changed = true;
+                    }
+                }
             }
             if (adapter != null) {
                 adapter.notifyDataSetChanged();
@@ -60,7 +84,7 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             runOnUiThread(() -> {
                 boolean changed = false;
                 for (AccountModel acc : accounts) {
-                    if (acc.getId().equals(accountId)) {
+                    if (acc.getId().equals(accountId) || (acc.getNickname() != null && acc.getNickname().equalsIgnoreCase(accountId))) {
                         acc.setLevel(level);
                         acc.setRespect(respect);
                         acc.setRobPoints(rob);
@@ -71,7 +95,9 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                 }
                 if (changed) {
                     saveAccounts();
-                    adapter.notifyDataSetChanged();
+                    if (adapter != null) {
+                        adapter.notifyDataSetChanged();
+                    }
                 }
             });
         }
@@ -131,11 +157,21 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
     @Override
     protected void onResume() {
         super.onResume();
-        // Check running status
+        // Check running status & sync cached stats
         for (AccountModel acc : accounts) {
             boolean running = BotService.isBotRunning(acc.getNickname());
             if (!running && acc.getStatus() == AccountModel.Status.ONLINE) {
                 acc.setStatus(AccountModel.Status.OFFLINE);
+            }
+            String[] stats = BotService.getCachedStats(acc.getId());
+            if (stats == null) {
+                stats = BotService.getCachedStats(acc.getNickname());
+            }
+            if (stats != null) {
+                if (!"--".equals(stats[0])) acc.setLevel(stats[0]);
+                if (!"--".equals(stats[1])) acc.setRespect(stats[1]);
+                if (!"--".equals(stats[2])) acc.setRobPoints(stats[2]);
+                if (!"--".equals(stats[3])) acc.setEscapePoints(stats[3]);
             }
         }
         if (adapter != null) {

@@ -27,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,6 +56,11 @@ public class BotService extends Service {
 
     private static final Pattern PATTERN_LEVEL_RESPECT = Pattern.compile("Level\\s*\\[(\\d+)\\]\\s*Respect\\s*\\[([0-9/]+)\\]", Pattern.CASE_INSENSITIVE);
     private static final Pattern PATTERN_ROB_ESCAPE = Pattern.compile("Rob points\\s*\\[(\\d+)\\]\\s*Escape points\\s*\\[(\\d+)\\]", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PATTERN_LEVEL = Pattern.compile("Level\\s*[:\\[\\s]*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PATTERN_RESPECT = Pattern.compile("Respect\\s*[:\\[\\s]*([0-9/]+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PATTERN_ROB = Pattern.compile("Rob\\s*(?:points)?\\s*[:\\[\\s]*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern PATTERN_ESCAPE = Pattern.compile("Escape\\s*(?:points)?\\s*[:\\[\\s]*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     public static void addLogCallback(LogCallback callback) {
         if (callback != null && !logCallbacks.contains(callback)) {
@@ -91,27 +99,77 @@ public class BotService extends Service {
         String[] stats = cachedStats.computeIfAbsent(accountId, k -> new String[]{"--", "--", "--", "--"});
         boolean changed = false;
 
-        Matcher m1 = PATTERN_LEVEL_RESPECT.matcher(line);
-        if (m1.find()) {
-            stats[0] = m1.group(1);
-            stats[1] = m1.group(2);
+        Matcher mLR = PATTERN_LEVEL_RESPECT.matcher(line);
+        if (mLR.find()) {
+            stats[0] = mLR.group(1);
+            stats[1] = mLR.group(2);
             changed = true;
+        } else {
+            Matcher mRes = PATTERN_RESPECT.matcher(line);
+            Matcher mLvl = PATTERN_LEVEL.matcher(line);
+            if (mRes.find()) {
+                stats[1] = mRes.group(1);
+                changed = true;
+                if (mLvl.find()) {
+                    stats[0] = mLvl.group(1);
+                }
+            } else if (line.contains("Activity:") && mLvl.find()) {
+                stats[0] = mLvl.group(1);
+                changed = true;
+            }
         }
 
-        Matcher m2 = PATTERN_ROB_ESCAPE.matcher(line);
-        if (m2.find()) {
-            stats[2] = m2.group(1);
-            stats[3] = m2.group(2);
+        Matcher mRE = PATTERN_ROB_ESCAPE.matcher(line);
+        if (mRE.find()) {
+            stats[2] = mRE.group(1);
+            stats[3] = mRE.group(2);
             changed = true;
+        } else if (line.contains("Resources:") || line.toLowerCase().contains("rob points") || line.toLowerCase().contains("escape points")) {
+            Matcher mRob = PATTERN_ROB.matcher(line);
+            Matcher mEsc = PATTERN_ESCAPE.matcher(line);
+            if (mRob.find()) {
+                stats[2] = mRob.group(1);
+                changed = true;
+            }
+            if (mEsc.find()) {
+                stats[3] = mEsc.group(1);
+                changed = true;
+            }
         }
 
         if (changed) {
+            for (Map.Entry<String, String> entry : nickToAccountId.entrySet()) {
+                if (accountId.equals(entry.getValue())) {
+                    cachedStats.put(entry.getKey(), stats);
+                    break;
+                }
+            }
+
             for (LogCallback cb : logCallbacks) {
                 try {
                     cb.onStatsUpdated(accountId, stats[0], stats[1], stats[2], stats[3]);
                 } catch (Exception ignored) {}
             }
         }
+    }
+
+    public static String[] getCachedStats(String keyOrId) {
+        if (keyOrId == null) return null;
+        String[] s = cachedStats.get(keyOrId);
+        if (s == null) {
+            String accId = nickToAccountId.get(keyOrId.toLowerCase());
+            if (accId != null) {
+                s = cachedStats.get(accId);
+            }
+        }
+        return s;
+    }
+
+    public static void scheduleCommand(String nickname, String cmd, int delaySeconds) {
+        if (nickname == null || cmd == null) return;
+        try {
+            scheduler.schedule(() -> sendLocalCommand(nickname, cmd), delaySeconds, TimeUnit.SECONDS);
+        } catch (Exception ignored) {}
     }
 
     public static boolean isBotRunning(String nickname) {
@@ -212,9 +270,10 @@ public class BotService extends Service {
                     while ((line = reader.readLine()) != null) {
                         appendLog(acc.getId(), line);
 
+                        String lower = line.toLowerCase();
+
                         // Auto-response in Java as backup if console prompts for password or spawn
                         if (acc.isAutoLogin()) {
-                            String lower = line.toLowerCase();
                             if ((lower.contains("type response for [login]") || lower.contains("type response for"))
                                     && acc.getPassword() != null && !acc.getPassword().isEmpty()) {
                                 try {
@@ -223,6 +282,9 @@ public class BotService extends Service {
                                     os.write((acc.getPassword() + "\n").getBytes(StandardCharsets.UTF_8));
                                     os.flush();
                                     appendLog(acc.getId(), "[AGRak] 🔑 رمز عبور به صورت خودکار به دیالوگ لاگین ارسال شد.");
+
+                                    // Schedule stats query 15s after password (when in-game)
+                                    scheduleCommand(key, "/stats", 15);
                                 } catch (Exception ex) {
                                     Log.e(TAG, "Error auto-submitting password", ex);
                                 }
@@ -237,6 +299,14 @@ public class BotService extends Service {
                                     Log.e(TAG, "Error auto-spawning", ex);
                                 }
                             }
+                        }
+
+                        // Auto-trigger stats on login or sleep confirmation
+                        if (lower.contains("welcome ") || lower.contains("put to sleep") || lower.contains("confirmed in sleep mode") || lower.contains("auto-confirming")) {
+                            scheduleCommand(key, "/stats", 3);
+                        } else if (lower.contains("can't execute commands when a dialog is shown") || lower.contains("dialog is shown up")) {
+                            // Retry stats if server blocked it due to an open dialog
+                            scheduleCommand(key, "/stats", 4);
                         }
                     }
                 } catch (Exception e) {
@@ -398,6 +468,15 @@ public class BotService extends Service {
         createNotificationChannel();
         acquireWakeLock();
         startForeground(NOTIFICATION_ID, createNotification("سرویس داخلی راک‌سمپ AGRak آماده است"));
+
+        // Periodically refresh stats every 90 seconds for all active bots
+        scheduler.scheduleWithFixedDelay(() -> {
+            try {
+                for (String activeNick : activeProcesses.keySet()) {
+                    sendLocalCommand(activeNick, "/stats");
+                }
+            } catch (Exception ignored) {}
+        }, 30, 90, TimeUnit.SECONDS);
     }
 
     private void acquireWakeLock() {

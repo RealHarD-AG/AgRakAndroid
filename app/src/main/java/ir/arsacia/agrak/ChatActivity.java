@@ -47,6 +47,7 @@ public class ChatActivity extends AppCompatActivity {
         Button btnSend = findViewById(R.id.btnSendMessage);
 
         Button btnReconnect = findViewById(R.id.btnQuickReconnect);
+        Button btnStats = findViewById(R.id.btnQuickStats);
         Button btnSleep = findViewById(R.id.btnQuickSleep);
 
         tvName.setText("👤 " + (accountNick != null ? accountNick : "اکانت"));
@@ -72,6 +73,9 @@ public class ChatActivity extends AppCompatActivity {
 
         // Quick Command Shortcuts
         btnReconnect.setOnClickListener(v -> sendCommand("!reconnect"));
+        if (btnStats != null) {
+            btnStats.setOnClickListener(v -> sendCommand("/stats"));
+        }
         btnSleep.setOnClickListener(v -> sendCommand("/sleep"));
 
         BotService.addLogCallback(chatLogCallback);
