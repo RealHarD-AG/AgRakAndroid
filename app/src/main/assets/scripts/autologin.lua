@@ -129,48 +129,49 @@ function onReceiveRPC(id, bs)
         local szTitle = (bTitleLength and bTitleLength > 0) and bs:readString(bTitleLength) or ""
         local titleLower = (szTitle and szTitle:lower()) or ""
 
-        -- 1. Handle launcher warning or notice dialog (ID 1 or launcher/notice/warning)
-        if wDialogID == 1 or titleLower:find("launcher") or titleLower:find("notice") or titleLower:find("warning") then
-            print(string.format("[AutoLogin] Notice/Launcher dialog (ID: %d) received. Auto-confirming...", wDialogID))
+        -- 1. Check for login / password dialog FIRST
+        local isLoginDialog = (bDialogStyle == 3 or titleLower:find("login") or titleLower:find("password") or titleLower:find("ramz") or titleLower:find("رمز") or titleLower:find("ورود") or wDialogID == 2 or wDialogID == 3)
+
+        if isLoginDialog then
+            if not AUTO_LOGIN_ENABLED or PASSWORD == "" then
+                print("[AutoLogin] ⚠️ هشدار: دیالوگ لاگین دریافت شد ولی رمز عبور اکانت خالی است! لطفاً اکانت را ویرایش کرده و رمز را وارد نمایید.")
+                return true
+            end
+
+            if loginAttempts < 4 then
+                loginAttempts = loginAttempts + 1
+                hasAttemptedLogin = true
+                print(string.format("[AutoLogin] 🔑 دیالوگ ورود (شناسه: %d) دریافت شد. در حال ارسال رمز عبور...", wDialogID))
+
+                newTask(function()
+                    wait(500)
+                    sendDialogResponse(wDialogID, 1, 0, PASSWORD)
+                    print("[AutoLogin] ✅ رمز عبور با موفقیت به سرور ارسال شد. در انتظار تایید ورود...")
+                end)
+                return false
+            else
+                print("[AutoLogin] ⚠️ خطا: رمز عبور ارسال شد ولی سرور تایید نکرد. لطفاً صحت رمز عبور را بررسی نمایید.")
+                return false
+            end
+        end
+
+        -- 2. Handle launcher warning or notice dialog (ID 1 or launcher/notice/warning)
+        if (wDialogID == 1 or titleLower:find("launcher") or titleLower:find("notice") or titleLower:find("warning")) and bDialogStyle ~= 3 then
+            print(string.format("[AutoLogin] دیالوگ اطلاع‌رسانی سرور (شناسه: %d) تایید شد.", wDialogID))
             newTask(function()
                 wait(500)
                 sendDialogResponse(wDialogID, 1, 0, "")
-                -- Once dismissed, request stats after 2.5s
-                requestStats(2500)
             end)
             return false
         end
 
-        -- 2. Handle stats dialog auto-close
+        -- 3. Handle stats dialog auto-close
         if titleLower:find("stats") or titleLower:find("status") then
             newTask(function()
                 wait(500)
                 sendDialogResponse(wDialogID, 1, 0, "")
             end)
             return false
-        end
-
-        -- 3. Check for login dialog (Dialog ID 2 or 3 or title containing login, or password style 3)
-        local isLoginDialog = (wDialogID == 2 or wDialogID == 3 or bDialogStyle == 3 or titleLower:find("login") or titleLower:find("password") or titleLower:find("ramz") or titleLower:find("رمز") or titleLower:find("ورود"))
-
-        if isLoginDialog and AUTO_LOGIN_ENABLED and PASSWORD ~= "" then
-            if loginAttempts < 3 then
-                loginAttempts = loginAttempts + 1
-                hasAttemptedLogin = true
-                print(string.format("[AutoLogin] Login dialog (ID: %d, Attempt: %d) detected. Automatically sending password...", wDialogID, loginAttempts))
-
-                newTask(function()
-                    wait(600)
-                    sendDialogResponse(wDialogID, 1, 0, PASSWORD)
-                    print("[AutoLogin] Password submitted successfully. Bot will remain in Sleep Mode (بدون اسپاون).")
-
-                    -- Backup stats request after login sequence completes (15s)
-                    requestStats(15000)
-                end)
-                return false
-            else
-                print("[AutoLogin] ⚠️ خطا: پسورد ارسال شد اما سرور مجدداً درخواست رمز کرد. لطفاً صحت رمز عبور را بررسی نمایید.")
-            end
         end
     end
 end

@@ -262,6 +262,11 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                 return;
             }
 
+            if (pass.isEmpty() && swAutoLogin.isChecked()) {
+                etPass.setError("لطفاً رمز عبور اکانت را وارد کنید");
+                return;
+            }
+
             if (accountToEdit != null) {
                 accountToEdit.setNickname(nick);
                 accountToEdit.setPassword(pass);

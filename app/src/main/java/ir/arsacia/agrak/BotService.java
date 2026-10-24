@@ -115,12 +115,20 @@ public class BotService extends Service {
                 trimmed.contains("Connected. Joining the game") ||
                 trimmed.contains("Account confirmed in Sleep Mode") ||
                 trimmed.contains("اسلیپ فعال است") ||
+                trimmed.contains("[AutoLogin] 🔑") ||
+                trimmed.contains("[AutoLogin] ✅") ||
+                trimmed.contains("[AutoLogin] ⚠️") ||
                 trimmed.contains("You have been spawned") ||
                 trimmed.contains("You are banned") ||
                 trimmed.contains("You were kicked") ||
                 trimmed.contains("Connection was closed") ||
                 trimmed.contains("Server closed the connection")) {
             return true;
+        }
+
+        // Suppress premature "First login into the server." from chat tab
+        if (trimmed.contains("First login into the server.")) {
+            return false;
         }
 
         // Filter out app and engine technical messages
@@ -210,6 +218,9 @@ public class BotService extends Service {
             return timePrefix + cmsgContent;
         } else if (formatted.contains("Account confirmed in Sleep Mode") || formatted.contains("اسلیپ فعال است")) {
             return timePrefix + "💤 [اسلیپ] اکانت با موفقیت در حالت اسلیپ تایید شد.";
+        } else if (formatted.contains("[AutoLogin] 🔑") || formatted.contains("[AutoLogin] ✅") || formatted.contains("[AutoLogin] ⚠️")) {
+            String msg = formatted.substring(formatted.indexOf("[AutoLogin]") + 11).trim();
+            return timePrefix + msg;
         } else if (formatted.startsWith("Connecting to")) {
             return timePrefix + "🔄 [اتصال] در حال اتصال به سرور آرساکیا گیم...";
         } else if (formatted.startsWith("Connected to") || formatted.startsWith("Connected.")) {
@@ -362,6 +373,10 @@ public class BotService extends Service {
         // Stop existing process if any
         stopLocalBot(nick);
 
+        if (acc.getPassword() == null || acc.getPassword().trim().isEmpty()) {
+            appendLog(acc.getId(), "⚠️ [AGRak] توجه: رمز عبور برای این اکانت ثبت نشده است! لطفاً اکانت را ویرایش نمایید.");
+        }
+
         appendLog(acc.getId(), "[AGRak] آماده‌سازی محیط اجرای داخلی ربات برای " + nick + "...");
 
         try {
@@ -449,8 +464,8 @@ public class BotService extends Service {
                         }
 
                         // Auto-trigger stats on login or sleep confirmation
-                        if (lower.contains("welcome ") || lower.contains("put to sleep") || lower.contains("confirmed in sleep mode") || lower.contains("auto-confirming")) {
-                            scheduleCommand(key, "/stats", 3);
+                        if (lower.contains("welcome ") || lower.contains("put to sleep") || lower.contains("confirmed in sleep mode")) {
+                            scheduleCommand(key, "/stats", 4);
                         } else if (lower.contains("can't execute commands when a dialog is shown") || lower.contains("dialog is shown up")) {
                             // Retry stats if server blocked it due to an open dialog
                             scheduleCommand(key, "/stats", 4);
