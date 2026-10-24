@@ -28,19 +28,6 @@ public class AccountModel {
         this.password = password;
         this.autoLogin = autoLogin;
         this.antiAfk = antiAfk;
-
-        // Initialize with verified account stats if known
-        if (nickname != null && nickname.equalsIgnoreCase("HarD")) {
-            this.level = "60";
-            this.respect = "196/244";
-            this.robPoints = "20";
-            this.escapePoints = "29";
-        } else if (nickname != null && nickname.equalsIgnoreCase("SynA")) {
-            this.level = "1";
-            this.respect = "0/8";
-            this.robPoints = "0";
-            this.escapePoints = "0";
-        }
     }
 
     public String getId() { return id; }

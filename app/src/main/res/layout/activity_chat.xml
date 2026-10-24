@@ -42,7 +42,7 @@
                     android:id="@+id/tvChatAccountName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="👤 HarD"
+                    android:text="👤 اکانت"
                     android:textColor="@color/text_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
