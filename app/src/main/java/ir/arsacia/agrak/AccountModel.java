@@ -11,7 +11,7 @@ public class AccountModel {
     private String nickname;
     private String password;
     private boolean autoLogin;
-    private boolean antiAfk;
+    private boolean antiAfk = true;
 
     private Status status = Status.OFFLINE;
     private long connectionStartTime = 0;
@@ -22,12 +22,16 @@ public class AccountModel {
     private String robPoints = "--";
     private String escapePoints = "--";
 
+    public AccountModel(String nickname, String password, boolean autoLogin) {
+        this(nickname, password, autoLogin, true);
+    }
+
     public AccountModel(String nickname, String password, boolean autoLogin, boolean antiAfk) {
         this.id = String.valueOf(System.currentTimeMillis()) + "_" + nickname;
         this.nickname = nickname;
         this.password = password;
         this.autoLogin = autoLogin;
-        this.antiAfk = antiAfk;
+        this.antiAfk = true; // Always enabled
     }
 
     public String getId() { return id; }

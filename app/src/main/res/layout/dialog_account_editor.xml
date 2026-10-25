@@ -93,7 +93,7 @@
                 android:contentDescription="نمایش/مخفی‌سازی رمز عبور" />
         </FrameLayout>
 
-        <!-- Options: Auto-Login & Anti-AFK -->
+        <!-- Options: Auto-Login -->
         <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/switchAutoLogin"
             android:layout_width="match_parent"
@@ -101,16 +101,6 @@
             android:layout_marginTop="14dp"
             android:checked="true"
             android:text="@string/auto_login_spawn"
-            android:textColor="@color/text_white"
-            android:textSize="13sp" />
-
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/switchAntiAfk"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:checked="true"
-            android:text="@string/anti_afk"
             android:textColor="@color/text_white"
             android:textSize="13sp" />
 

@@ -8,6 +8,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -17,7 +18,7 @@ public class ChatActivity extends AppCompatActivity {
 
     private String accountId;
     private String accountNick;
-    private TextView tvConsoleLogs;
+    private TextView tvConsoleLogs, tvChatStatus;
     private ScrollView scrollConsole;
     private EditText etChatMessage;
     private CheckBox cbFilterSmsAds;
@@ -33,10 +34,17 @@ public class ChatActivity extends AppCompatActivity {
         @Override
         public void onNewChat(String accId, String line) {
             if (accountId != null && accountId.equals(accId)) {
+                if (BotService.isStatsDumpLine(line)) {
+                    return;
+                }
                 if (filterSmsAds && BotService.isSmsAd(line)) {
                     return;
                 }
                 runOnUiThread(() -> {
+                    boolean hadFocus = etChatMessage != null && etChatMessage.hasFocus();
+                    int selStart = hadFocus ? etChatMessage.getSelectionStart() : -1;
+                    int selEnd = hadFocus ? etChatMessage.getSelectionEnd() : -1;
+
                     CharSequence current = tvConsoleLogs.getText();
                     if (current != null && current.toString().contains("در حال انتظار")) {
                         tvConsoleLogs.setText("");
@@ -44,12 +52,32 @@ public class ChatActivity extends AppCompatActivity {
                     tvConsoleLogs.append(ColorSpanHelper.parseSampColors(line));
                     tvConsoleLogs.append("\n");
                     scrollToBottom();
+
+                    if (hadFocus) {
+                        etChatMessage.requestFocus();
+                        if (selStart >= 0 && selEnd >= 0 && selEnd <= etChatMessage.getText().length()) {
+                            etChatMessage.setSelection(selStart, selEnd);
+                        }
+                    }
                 });
             }
         }
 
         @Override
-        public void onStatsUpdated(String accId, String level, String respect, String rob, String escape) {}
+        public void onStatsUpdated(String accId, String level, String respect, String rob, String escape) {
+            if (accountId != null && (accountId.equals(accId) || (accountNick != null && accountNick.equalsIgnoreCase(accId)))) {
+                runOnUiThread(() -> {
+                    if (tvChatStatus != null) {
+                        String st = "🟢 آنلاین | لول: " + level + " | رسپکت: " + respect;
+                        if (!"--".equals(rob) || !"--".equals(escape)) {
+                            st += " | راب: " + rob;
+                        }
+                        tvChatStatus.setText(st);
+                    }
+                    Toast.makeText(ChatActivity.this, "اطلاعات مشخصات اکانت به‌روزرسانی شد (لول: " + level + "، رسپکت: " + respect + ")", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }
     };
 
     @Override
@@ -61,6 +89,7 @@ public class ChatActivity extends AppCompatActivity {
         accountNick = getIntent().getStringExtra("account_nick");
 
         TextView tvName = findViewById(R.id.tvChatAccountName);
+        tvChatStatus = findViewById(R.id.tvChatStatus);
         tvConsoleLogs = findViewById(R.id.tvConsoleLogs);
         scrollConsole = findViewById(R.id.scrollConsole);
         etChatMessage = findViewById(R.id.etChatMessage);
@@ -76,6 +105,19 @@ public class ChatActivity extends AppCompatActivity {
         tvName.setText(accountNick != null ? accountNick : "اکانت");
         btnBack.setOnClickListener(v -> finish());
 
+        // Initial sync of cached stats in chat header
+        String[] initialStats = BotService.getCachedStats(accountId);
+        if (initialStats == null && accountNick != null) {
+            initialStats = BotService.getCachedStats(accountNick);
+        }
+        if (initialStats != null && tvChatStatus != null) {
+            String st = "🟢 آنلاین | لول: " + initialStats[0] + " | رسپکت: " + initialStats[1];
+            if (!"--".equals(initialStats[2]) || !"--".equals(initialStats[3])) {
+                st += " | راب: " + initialStats[2];
+            }
+            tvChatStatus.setText(st);
+        }
+
         cbFilterSmsAds.setOnCheckedChangeListener((buttonView, isChecked) -> {
             filterSmsAds = isChecked;
             refreshConsoleDisplay();
@@ -88,7 +130,14 @@ public class ChatActivity extends AppCompatActivity {
         btnSend.setOnClickListener(v -> {
             String msg = etChatMessage.getText().toString().trim();
             if (!msg.isEmpty()) {
-                sendUserCommand(msg);
+                if (msg.equalsIgnoreCase("/stats")) {
+                    if (accountNick != null) {
+                        BotService.sendLocalCommand(accountNick, "/stats", false);
+                        Toast.makeText(this, "در حال استعلام و به‌روزرسانی مشخصات اکانت...", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    sendUserCommand(msg);
+                }
                 etChatMessage.setText("");
             }
         });
@@ -96,7 +145,12 @@ public class ChatActivity extends AppCompatActivity {
         // Quick Command Shortcuts
         btnReconnect.setOnClickListener(v -> sendUserCommand("!reconnect"));
         if (btnStats != null) {
-            btnStats.setOnClickListener(v -> sendUserCommand("/stats"));
+            btnStats.setOnClickListener(v -> {
+                if (accountNick != null) {
+                    BotService.sendLocalCommand(accountNick, "/stats", false);
+                    Toast.makeText(this, "در حال استعلام و به‌روزرسانی مشخصات اکانت...", Toast.LENGTH_SHORT).show();
+                }
+            });
         }
         btnSleep.setOnClickListener(v -> sendUserCommand("/sleep"));
 
@@ -112,6 +166,9 @@ public class ChatActivity extends AppCompatActivity {
             SpannableStringBuilder ssb = new SpannableStringBuilder();
             for (String line : chat.split("\n")) {
                 if (line.trim().isEmpty()) continue;
+                if (BotService.isStatsDumpLine(line)) {
+                    continue;
+                }
                 if (filterSmsAds && BotService.isSmsAd(line)) {
                     continue;
                 }
@@ -147,6 +204,13 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void scrollToBottom() {
-        scrollConsole.post(() -> scrollConsole.fullScroll(ScrollView.FOCUS_DOWN));
+        if (scrollConsole != null && tvConsoleLogs != null) {
+            scrollConsole.post(() -> {
+                int scrollY = tvConsoleLogs.getBottom() - scrollConsole.getHeight();
+                if (scrollY > 0) {
+                    scrollConsole.smoothScrollTo(0, scrollY);
+                }
+            });
+        }
     }
 }

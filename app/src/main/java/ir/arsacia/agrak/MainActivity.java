@@ -241,7 +241,6 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
         EditText etPass = dialogView.findViewById(R.id.etPassword);
         ImageView btnTogglePass = dialogView.findViewById(R.id.btnTogglePassword);
         SwitchCompat swAutoLogin = dialogView.findViewById(R.id.switchAutoLogin);
-        SwitchCompat swAntiAfk = dialogView.findViewById(R.id.switchAntiAfk);
         Button btnSave = dialogView.findViewById(R.id.btnSaveAccount);
         Button btnCancel = dialogView.findViewById(R.id.btnCancelDialog);
 
@@ -265,7 +264,6 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             etNick.setText(accountToEdit.getNickname());
             etPass.setText(accountToEdit.getPassword());
             swAutoLogin.setChecked(accountToEdit.isAutoLogin());
-            swAntiAfk.setChecked(accountToEdit.isAntiAfk());
         } else {
             tvTitle.setText(R.string.dialog_add_title);
         }
@@ -288,9 +286,9 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                 accountToEdit.setNickname(nick);
                 accountToEdit.setPassword(pass);
                 accountToEdit.setAutoLogin(swAutoLogin.isChecked());
-                accountToEdit.setAntiAfk(swAntiAfk.isChecked());
+                accountToEdit.setAntiAfk(true);
             } else {
-                AccountModel newAcc = new AccountModel(nick, pass, swAutoLogin.isChecked(), swAntiAfk.isChecked());
+                AccountModel newAcc = new AccountModel(nick, pass, swAutoLogin.isChecked(), true);
                 accounts.add(newAcc);
             }
 
@@ -399,8 +397,9 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                             obj.getString("nick"),
                             obj.getString("pass"),
                             obj.optBoolean("autoLogin", true),
-                            obj.optBoolean("antiAfk", true)
+                            true
                     );
+                    acc.setAntiAfk(true);
                     if (obj.has("id")) {
                         acc.setId(obj.getString("id"));
                     }

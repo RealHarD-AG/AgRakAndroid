@@ -165,7 +165,8 @@
         android:layout_weight="1"
         android:background="#0D0E11"
         android:padding="10dp"
-        android:fillViewport="true">
+        android:fillViewport="true"
+        android:descendantFocusability="blocksDescendants">
 
         <TextView
             android:id="@+id/tvConsoleLogs"
@@ -174,7 +175,8 @@
             android:textColor="#E0E0E0"
             android:textSize="12sp"
             android:typeface="monospace"
-            android:textIsSelectable="true"
+            android:focusable="false"
+            android:focusableInTouchMode="false"
             android:text="💬 در حال اتصال به سرور و راه‌اندازی اسلیپ...\n" />
     </ScrollView>
 

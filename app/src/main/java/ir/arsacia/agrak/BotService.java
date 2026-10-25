@@ -92,6 +92,7 @@ public class BotService extends Service {
 
     public static void appendChat(String accountId, String line) {
         if (accountId == null || line == null) return;
+        if (isStatsDumpLine(line)) return;
         StringBuilder sb = accountChat.computeIfAbsent(accountId, k -> new StringBuilder());
         sb.append(line).append("\n");
         if (sb.length() > 200000) {
@@ -99,27 +100,91 @@ public class BotService extends Service {
         }
     }
 
+    public static String stripColorCodes(String str) {
+        if (str == null) return "";
+        return str.replaceAll("\\{[0-9a-fA-F]{6}\\}", "");
+    }
+
+    public static String stripTimestamp(String str) {
+        if (str == null) return "";
+        int timeEnd = str.indexOf("] ");
+        if (str.startsWith("[") && timeEnd > 0 && timeEnd <= 15) {
+            return str.substring(timeEnd + 2);
+        }
+        return str;
+    }
+
+    public static boolean isStatsDumpLine(String line) {
+        if (line == null) return false;
+        String clean = stripColorCodes(stripTimestamp(line.trim())).trim();
+        String lower = clean.toLowerCase();
+
+        // 1. Outgoing /stats command
+        if (clean.contains("📤 من:") && lower.contains("/stats")) {
+            return true;
+        }
+
+        // 2. Separators
+        if (clean.contains("____________________") || clean.contains("--------------------")) {
+            return true;
+        }
+
+        // 3. Header: *** [Wz]HarD (183) ***
+        if (clean.contains("***") && (clean.contains("(") || clean.contains("["))) {
+            return true;
+        }
+
+        // 4. Section headers & properties from /stats
+        if (clean.contains("Account:") && (clean.contains("Sex") || clean.contains("Cash") || clean.contains("Job") || clean.contains("Phone") || clean.contains("Premium") || clean.contains("Spouse"))) {
+            return true;
+        }
+        if (clean.contains("Activity:") && (clean.contains("Level") || clean.contains("Respect") || clean.contains("AFK") || clean.contains("played") || clean.contains("Online") || clean.contains("Active") || clean.contains("cost"))) {
+            return true;
+        }
+        if (clean.contains("Crimes:") && (clean.contains("Status") || clean.contains("Wanted") || clean.contains("Criminal") || clean.contains("Arrests") || clean.contains("deaths"))) {
+            return true;
+        }
+        if (clean.contains("Punishes:") && (clean.contains("Mute") || clean.contains("jail") || clean.contains("Warn") || clean.contains("punish"))) {
+            return true;
+        }
+        if (clean.contains("Resources:") && (clean.contains("Gold") || clean.contains("Rob") || clean.contains("Escape") || clean.contains("Muscles") || clean.contains("Stomach"))) {
+            return true;
+        }
+        if (clean.contains("Inventory:") && (clean.contains("Drugs") || clean.contains("Materials") || clean.contains("Bombs") || clean.contains("Fish") || clean.contains("Lighter") || clean.contains("Cigarettes") || clean.contains("Lotto") || clean.contains("BS"))) {
+            return true;
+        }
+        if (clean.contains("Faction:") && (clean.contains("Faction") || clean.contains("Rank") || clean.contains("Meeting"))) {
+            return true;
+        }
+
+        // 5. Individual metric signatures (in case prefix is omitted or wrapped)
+        if (clean.contains("Level [") && clean.contains("Respect [")) return true;
+        if (clean.contains("Rob points [") || clean.contains("Escape points [")) return true;
+        if (clean.contains("AFK time [") || clean.contains("Next level cost [")) return true;
+        if (clean.contains("Wanted level [") || clean.contains("Criminal record [")) return true;
+        if (clean.contains("Admin jail [") || clean.contains("Faction warns [") || clean.contains("Faction punishes [")) return true;
+        if (clean.contains("Total played [") || clean.contains("Hours played [")) return true;
+        if (clean.contains("Online time [") || clean.contains("Active time [")) return true;
+        if (clean.contains("BS Mats [") || clean.contains("BSMats [")) return true;
+        if (clean.contains("Fish [") && clean.contains("Lighter [")) return true;
+        if (clean.contains("Premium account [") || clean.contains("Stomach [Empty]")) return true;
+
+        return false;
+    }
+
     public static boolean isServerChatLine(String line) {
         if (line == null) return false;
         String trimmed = line.trim();
         if (trimmed.isEmpty()) return false;
 
+        // Completely filter all stats dump lines and outgoing /stats commands from chat
+        if (isStatsDumpLine(trimmed)) {
+            return false;
+        }
+
         // User outgoing command or message
         if (trimmed.contains("📤 من:")) {
             return true;
-        }
-
-        // Filter periodic stats dumps from the chat view (they update top cards)
-        if (trimmed.contains("*** [") && trimmed.contains(") ***")) return false;
-        if (trimmed.contains("Account: Sex [") ||
-                trimmed.contains("Activity: Level [") ||
-                trimmed.contains("Crimes: Status [") ||
-                trimmed.contains("Punishes: Mute [") ||
-                trimmed.contains("Resources: Gold [") ||
-                trimmed.contains("Inventory: Drugs [") ||
-                trimmed.contains("Faction: Faction [") ||
-                trimmed.contains("_______________________________________________")) {
-            return false;
         }
 
         // Only official SA:MP server client messages or player chat
@@ -183,14 +248,14 @@ public class BotService extends Service {
         parseLineForStats(accountId, line);
 
         String cleanChat = formatIfServerChat(line);
-        if (cleanChat != null) {
+        if (cleanChat != null && !isStatsDumpLine(cleanChat)) {
             appendChat(accountId, cleanChat);
         }
 
         for (LogCallback cb : logCallbacks) {
             try {
                 cb.onNewLog(accountId, line);
-                if (cleanChat != null) {
+                if (cleanChat != null && !isStatsDumpLine(cleanChat)) {
                     cb.onNewChat(accountId, cleanChat);
                 }
             } catch (Exception ignored) {}
@@ -199,37 +264,38 @@ public class BotService extends Service {
 
     public static void parseLineForStats(String accountId, String line) {
         if (accountId == null || line == null) return;
+        String clean = stripColorCodes(line);
         String[] stats = cachedStats.computeIfAbsent(accountId, k -> new String[]{"--", "--", "--", "--"});
         boolean changed = false;
 
-        Matcher mLR = PATTERN_LEVEL_RESPECT.matcher(line);
+        Matcher mLR = PATTERN_LEVEL_RESPECT.matcher(clean);
         if (mLR.find()) {
             stats[0] = mLR.group(1);
             stats[1] = mLR.group(2);
             changed = true;
         } else {
-            Matcher mRes = PATTERN_RESPECT.matcher(line);
-            Matcher mLvl = PATTERN_LEVEL.matcher(line);
+            Matcher mRes = PATTERN_RESPECT.matcher(clean);
+            Matcher mLvl = PATTERN_LEVEL.matcher(clean);
             if (mRes.find()) {
                 stats[1] = mRes.group(1);
                 changed = true;
                 if (mLvl.find()) {
                     stats[0] = mLvl.group(1);
                 }
-            } else if (line.contains("Activity:") && mLvl.find()) {
+            } else if (clean.contains("Activity:") && mLvl.find()) {
                 stats[0] = mLvl.group(1);
                 changed = true;
             }
         }
 
-        Matcher mRE = PATTERN_ROB_ESCAPE.matcher(line);
+        Matcher mRE = PATTERN_ROB_ESCAPE.matcher(clean);
         if (mRE.find()) {
             stats[2] = mRE.group(1);
             stats[3] = mRE.group(2);
             changed = true;
-        } else if (line.contains("Resources:") || line.toLowerCase().contains("rob points") || line.toLowerCase().contains("escape points")) {
-            Matcher mRob = PATTERN_ROB.matcher(line);
-            Matcher mEsc = PATTERN_ESCAPE.matcher(line);
+        } else if (clean.contains("Resources:") || clean.toLowerCase().contains("rob points") || clean.toLowerCase().contains("escape points")) {
+            Matcher mRob = PATTERN_ROB.matcher(clean);
+            Matcher mEsc = PATTERN_ESCAPE.matcher(clean);
             if (mRob.find()) {
                 stats[2] = mRob.group(1);
                 changed = true;
