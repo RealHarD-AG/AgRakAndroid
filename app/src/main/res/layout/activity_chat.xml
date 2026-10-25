@@ -65,8 +65,8 @@
                     android:id="@+id/tvChatStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🟢 آنلاین در آرساکیا"
-                    android:textColor="@color/status_green"
+                    android:text="🔴 آفلاین"
+                    android:textColor="@color/status_red"
                     android:textSize="11sp" />
             </LinearLayout>
 

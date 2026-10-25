@@ -382,13 +382,22 @@ public class BotService extends Service {
 
     public static boolean isBotRunning(String nickname) {
         if (nickname == null) return false;
-        Process proc = activeProcesses.get(nickname.toLowerCase());
+        String key = nickname.trim().toLowerCase();
+        Process proc = activeProcesses.get(key);
         if (proc != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                return proc.isAlive();
+                if (proc.isAlive()) {
+                    return true;
+                } else {
+                    activeProcesses.remove(key);
+                    connectedAccounts.remove(key);
+                    return false;
+                }
             }
             try {
                 proc.exitValue();
+                activeProcesses.remove(key);
+                connectedAccounts.remove(key);
                 return false;
             } catch (IllegalThreadStateException e) {
                 return true;
@@ -399,7 +408,12 @@ public class BotService extends Service {
 
     public static boolean isAccountConnected(String nickname) {
         if (nickname == null) return false;
-        return Boolean.TRUE.equals(connectedAccounts.get(nickname.toLowerCase()));
+        String key = nickname.trim().toLowerCase();
+        if (!isBotRunning(key)) {
+            connectedAccounts.remove(key);
+            return false;
+        }
+        return Boolean.TRUE.equals(connectedAccounts.get(key));
     }
 
     public static int getActiveBotsCount() {
@@ -502,19 +516,28 @@ public class BotService extends Service {
                                 || lower.contains("confirmed in sleep mode")
                                 || lower.contains("put to sleep")
                                 || lower.contains("welcome ")
-                                || lower.contains("using raksamp")
                                 || (lower.contains("level [") && lower.contains("respect ["));
 
                         // Check if server disconnected, kicked, or encountered an error
+                        boolean isMyKick = lower.contains("you have been kicked")
+                                || (lower.contains(key) && lower.contains("kicked"))
+                                || lower.contains("kick-error");
+
                         boolean isDisconnectOrError = lower.contains("disconnected")
                                 || lower.contains("reconnecting")
-                                || lower.contains("server closed the connection")
+                                || lower.contains("the connection was lost")
                                 || lower.contains("connection was closed")
+                                || lower.contains("server closed the connection")
+                                || lower.contains("connection attempt failed")
+                                || lower.contains("no answer within")
+                                || lower.contains("the server did not respond")
+                                || lower.contains("server didn't respond")
                                 || lower.contains("already logged in")
                                 || lower.contains("you are banned")
-                                || lower.contains("kicked")
+                                || lower.contains("the server is full")
+                                || lower.contains("session reset")
                                 || lower.contains("connection rejected")
-                                || lower.contains("the server did not respond");
+                                || isMyKick;
 
                         if (isActuallyInServer) {
                             Boolean wasConnected = connectedAccounts.put(key, true);
@@ -522,6 +545,7 @@ public class BotService extends Service {
                                 for (LogCallback cb : logCallbacks) {
                                     try {
                                         cb.onConnected(acc.getId());
+                                        cb.onConnected(key);
                                     } catch (Exception ignored) {}
                                 }
                             }
@@ -536,13 +560,12 @@ public class BotService extends Service {
                                 }
                             }
                         } else if (isDisconnectOrError) {
-                            Boolean wasConnected = connectedAccounts.put(key, false);
-                            if (wasConnected == null || wasConnected) {
-                                for (LogCallback cb : logCallbacks) {
-                                    try {
-                                        cb.onDisconnected(acc.getId());
-                                    } catch (Exception ignored) {}
-                                }
+                            connectedAccounts.put(key, false);
+                            for (LogCallback cb : logCallbacks) {
+                                try {
+                                    cb.onDisconnected(acc.getId());
+                                    cb.onDisconnected(key);
+                                } catch (Exception ignored) {}
                             }
                             // IMPORTANT: DO NOT reset hasShownConnectedToast!
                             // It must never re-trigger if an error occurs or on auto-reconnect loops.
@@ -645,6 +668,12 @@ public class BotService extends Service {
                     cb.onDisconnected(accId);
                 } catch (Exception ignored) {}
             }
+        }
+        for (LogCallback cb : logCallbacks) {
+            try {
+                cb.onDisconnected(nickname);
+                cb.onDisconnected(key);
+            } catch (Exception ignored) {}
         }
     }
 

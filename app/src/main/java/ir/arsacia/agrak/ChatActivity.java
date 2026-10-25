@@ -24,6 +24,14 @@ public class ChatActivity extends AppCompatActivity {
     private CheckBox cbFilterSmsAds;
 
     private boolean filterSmsAds = true;
+    private final android.os.Handler statusHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final Runnable statusRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateChatStatus();
+            statusHandler.postDelayed(this, 1000);
+        }
+    };
 
     private final BotService.LogCallback chatLogCallback = new BotService.LogCallback() {
         @Override
@@ -150,12 +158,19 @@ public class ChatActivity extends AppCompatActivity {
         super.onResume();
         updateChatStatus();
         refreshConsoleDisplay();
+        statusHandler.post(statusRunnable);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        statusHandler.removeCallbacks(statusRunnable);
     }
 
     private void updateChatStatus() {
         if (tvChatStatus == null) return;
         boolean running = BotService.isBotRunning(accountNick);
-        boolean connected = BotService.isAccountConnected(accountNick);
+        boolean connected = running && BotService.isAccountConnected(accountNick);
         if (connected) {
             tvChatStatus.setText("🟢 آنلاین در آرساکیا");
             tvChatStatus.setTextColor(getResources().getColor(R.color.status_green));
@@ -197,6 +212,7 @@ public class ChatActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        statusHandler.removeCallbacks(statusRunnable);
         BotService.removeLogCallback(chatLogCallback);
         super.onDestroy();
     }

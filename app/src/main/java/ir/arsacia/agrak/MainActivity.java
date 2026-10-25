@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             for (AccountModel acc : accounts) {
                 String key = acc.getNickname().toLowerCase();
                 boolean running = BotService.isBotRunning(acc.getNickname());
-                boolean connected = BotService.isAccountConnected(acc.getNickname());
+                boolean connected = running && BotService.isAccountConnected(acc.getNickname());
 
                 if (connected) {
                     startingBots.remove(key);
@@ -261,7 +261,7 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
         for (AccountModel acc : accounts) {
             String key = acc.getNickname().toLowerCase();
             boolean running = BotService.isBotRunning(acc.getNickname());
-            boolean connected = BotService.isAccountConnected(acc.getNickname());
+            boolean connected = running && BotService.isAccountConnected(acc.getNickname());
             if (connected) {
                 startingBots.remove(key);
                 acc.setStatus(AccountModel.Status.ONLINE);
