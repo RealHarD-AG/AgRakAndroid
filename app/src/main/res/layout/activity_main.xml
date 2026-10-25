@@ -117,14 +117,14 @@
         android:layout_height="1dp"
         android:background="#252A36" />
 
-    <!-- Forum-style Footer -->
+    <!-- Footer Credits -->
     <LinearLayout
         android:id="@+id/layoutFooter"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:layoutDirection="ltr"
+        android:layoutDirection="rtl"
         android:paddingTop="10dp"
         android:paddingBottom="12dp"
         android:paddingLeft="16dp"
@@ -132,39 +132,36 @@
         android:background="#15171F">
 
         <TextView
-            android:id="@+id/tvFooterYear"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/footer_copyright"
-            android:textColor="#9E9E9E"
-            android:textSize="11sp" />
+            android:text="@string/footer_designed_with"
+            android:textColor="#B0BEC5"
+            android:textSize="12sp" />
 
         <ImageView
             android:id="@+id/imgFooterHeart"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:layout_marginStart="5dp"
-            android:layout_marginEnd="5dp"
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:layout_marginStart="6dp"
+            android:layout_marginEnd="6dp"
             android:src="@drawable/ic_heart"
-            android:contentDescription="Arsacia Heart" />
+            android:contentDescription="Heart" />
 
         <TextView
-            android:id="@+id/tvFooterBrand"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/footer_brand"
+            android:text="@string/footer_by"
+            android:textColor="#B0BEC5"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:text="@string/footer_author"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
-            android:textSize="11sp" />
-
-        <TextView
-            android:id="@+id/tvFooterRights"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:text="@string/footer_rights"
-            android:textColor="#9E9E9E"
-            android:textSize="11sp" />
+            android:textSize="13sp" />
     </LinearLayout>
 
 </LinearLayout>
