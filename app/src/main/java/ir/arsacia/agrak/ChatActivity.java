@@ -52,7 +52,7 @@ public class ChatActivity extends AppCompatActivity {
                     }
                     runOnUiThread(() -> {
                         CharSequence current = tvConsoleLogs.getText();
-                        if (current != null && current.toString().startsWith("💬 در حال انتظار")) {
+                        if (current != null && current.toString().startsWith("💬 در حال ")) {
                             tvConsoleLogs.setText("");
                         }
                         tvConsoleLogs.append(line + "\n");
@@ -158,7 +158,7 @@ public class ChatActivity extends AppCompatActivity {
         if (isChatOnlyMode) {
             String chat = BotService.getChatForAccount(accountId);
             if (chat.trim().isEmpty()) {
-                tvConsoleLogs.setText("💬 در حال انتظار برای دریافت چت و پیام‌های سرور آرساکیا...\n(پیام‌های سیستمی و زائد برنامه فیلتر شدند)\n");
+                tvConsoleLogs.setText("💬 در حال اتصال به سرور و راه‌اندازی اسلیپ...\n");
             } else {
                 if (filterSmsAds) {
                     StringBuilder filtered = new StringBuilder();
@@ -195,7 +195,7 @@ public class ChatActivity extends AppCompatActivity {
 
             if (isChatOnlyMode) {
                 CharSequence current = tvConsoleLogs.getText();
-                if (current != null && current.toString().startsWith("💬 در حال انتظار")) {
+                if (current != null && current.toString().startsWith("💬 در حال ")) {
                     tvConsoleLogs.setText("");
                 }
                 tvConsoleLogs.append(userLine + "\n");

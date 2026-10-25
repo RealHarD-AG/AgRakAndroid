@@ -115,20 +115,15 @@ public class BotService extends Service {
                 trimmed.contains("Connected. Joining the game") ||
                 trimmed.contains("Account confirmed in Sleep Mode") ||
                 trimmed.contains("اسلیپ فعال است") ||
-                trimmed.contains("[AutoLogin] 🔑") ||
-                trimmed.contains("[AutoLogin] ✅") ||
-                trimmed.contains("[AutoLogin] ⚠️") ||
+                trimmed.contains("Login dialog") ||
+                trimmed.contains("Password submitted successfully") ||
+                trimmed.contains("Notice/Launcher dialog") ||
                 trimmed.contains("You have been spawned") ||
                 trimmed.contains("You are banned") ||
                 trimmed.contains("You were kicked") ||
                 trimmed.contains("Connection was closed") ||
                 trimmed.contains("Server closed the connection")) {
             return true;
-        }
-
-        // Suppress premature "First login into the server." from chat tab
-        if (trimmed.contains("First login into the server.")) {
-            return false;
         }
 
         // Filter out app and engine technical messages
@@ -212,21 +207,24 @@ public class BotService extends Service {
 
         if (formatted.startsWith("[CHAT]")) {
             String chatContent = formatted.substring(6).trim();
-            return timePrefix + "[چت] " + chatContent;
+            return timePrefix + "💬 [چت] " + chatContent;
         } else if (formatted.startsWith("[CMSG]")) {
             String cmsgContent = formatted.substring(6).trim();
             return timePrefix + cmsgContent;
         } else if (formatted.contains("Account confirmed in Sleep Mode") || formatted.contains("اسلیپ فعال است")) {
             return timePrefix + "💤 [اسلیپ] اکانت با موفقیت در حالت اسلیپ تایید شد.";
-        } else if (formatted.contains("[AutoLogin] 🔑") || formatted.contains("[AutoLogin] ✅") || formatted.contains("[AutoLogin] ⚠️")) {
-            String msg = formatted.substring(formatted.indexOf("[AutoLogin]") + 11).trim();
-            return timePrefix + msg;
+        } else if (formatted.contains("Login dialog") && formatted.contains("detected")) {
+            return timePrefix + "🔑 [ورود] دیالوگ ورود دریافت شد. در حال ارسال خودکار رمز عبور...";
+        } else if (formatted.contains("Password submitted successfully")) {
+            return timePrefix + "✅ [ورود] رمز عبور با موفقیت به سرور ارسال شد. اکانت در حالت اسلیپ مستقر می‌شود.";
+        } else if (formatted.contains("Notice/Launcher dialog") && formatted.contains("received")) {
+            return timePrefix + "📋 [اطلاعیه] دیالوگ اطلاع‌رسانی سرور دریافت و تایید شد.";
         } else if (formatted.startsWith("Connecting to")) {
             return timePrefix + "🔄 [اتصال] در حال اتصال به سرور آرساکیا گیم...";
         } else if (formatted.startsWith("Connected to") || formatted.startsWith("Connected.")) {
             return timePrefix + "🟢 [اتصال] اتصال موفق به سرور آرساکیا گیم";
         } else if (formatted.contains("spawned")) {
-            return timePrefix + "🎮 [بازی] ورود به بازی انجام شد.";
+            return timePrefix + "🎮 [بازی] وضعیت آماده به کار (اسلیپ فعال).";
         } else if (formatted.contains("kicked") || formatted.contains("closed the connection") || formatted.contains("banned")) {
             return timePrefix + "🔴 [قطع] ارتباط با سرور قطع شد.";
         } else {
@@ -434,7 +432,7 @@ public class BotService extends Service {
 
                         String lower = line.toLowerCase();
 
-                        // Auto-response in Java as backup if console prompts for password or spawn
+                        // Auto-response in Java as backup if console prompts for password
                         if (acc.isAutoLogin()) {
                             if ((lower.contains("type response for [login]") || lower.contains("type response for"))
                                     && acc.getPassword() != null && !acc.getPassword().isEmpty()) {
@@ -449,16 +447,6 @@ public class BotService extends Service {
                                     scheduleCommand(key, "/stats", 15);
                                 } catch (Exception ex) {
                                     Log.e(TAG, "Error auto-submitting password", ex);
-                                }
-                            } else if (lower.contains("write !spawn into the console")) {
-                                try {
-                                    Thread.sleep(600);
-                                    OutputStream os = process.getOutputStream();
-                                    os.write("!spawn\n".getBytes(StandardCharsets.UTF_8));
-                                    os.flush();
-                                    appendLog(acc.getId(), "[AGRak] 🚀 دستور !spawn خودکار ارسال شد.");
-                                } catch (Exception ex) {
-                                    Log.e(TAG, "Error auto-spawning", ex);
                                 }
                             }
                         }

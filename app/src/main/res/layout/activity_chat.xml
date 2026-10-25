@@ -132,7 +132,7 @@
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:paddingHorizontal="4dp"
-            android:text="💬 فقط چت سرور"
+            android:text="💬 چت و رویدادهای سرور"
             android:textColor="@color/text_white"
             android:textSize="11sp"
             android:textStyle="bold" />
@@ -147,7 +147,7 @@
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:paddingHorizontal="4dp"
-            android:text="📜 لاگ‌های برنامه"
+            android:text="📜 لاگ کامل فنی"
             android:textColor="@color/text_secondary"
             android:textSize="11sp" />
 
@@ -182,7 +182,7 @@
             android:textSize="12sp"
             android:typeface="monospace"
             android:textIsSelectable="true"
-            android:text="💬 در حال انتظار برای دریافت چت و پیام‌های سرور آرساکیا...\n(پیام‌های سیستمی و زائد برنامه فیلتر شدند)\n" />
+            android:text="💬 در حال اتصال به سرور و راه‌اندازی اسلیپ...\n" />
     </ScrollView>
 
     <!-- Bottom Message Input Row -->
