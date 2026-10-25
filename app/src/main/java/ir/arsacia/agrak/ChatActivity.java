@@ -1,8 +1,7 @@
 package ir.arsacia.agrak;
 
-import android.content.res.ColorStateList;
-import android.graphics.Color;
 import android.os.Bundle;
+import android.text.SpannableStringBuilder;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -10,7 +9,6 @@ import android.widget.ImageButton;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -22,43 +20,31 @@ public class ChatActivity extends AppCompatActivity {
     private TextView tvConsoleLogs;
     private ScrollView scrollConsole;
     private EditText etChatMessage;
-
-    private Button btnTabChat;
-    private Button btnTabLogs;
     private CheckBox cbFilterSmsAds;
 
-    private boolean isChatOnlyMode = true;
     private boolean filterSmsAds = true;
 
     private final BotService.LogCallback chatLogCallback = new BotService.LogCallback() {
         @Override
         public void onNewLog(String accId, String line) {
-            if (accountId != null && accountId.equals(accId)) {
-                if (!isChatOnlyMode) {
-                    runOnUiThread(() -> {
-                        tvConsoleLogs.append(line + "\n");
-                        scrollToBottom();
-                    });
-                }
-            }
+            // Internal technical logs are suppressed from the chat view
         }
 
         @Override
         public void onNewChat(String accId, String line) {
             if (accountId != null && accountId.equals(accId)) {
-                if (isChatOnlyMode) {
-                    if (filterSmsAds && BotService.isSmsAd(line)) {
-                        return;
-                    }
-                    runOnUiThread(() -> {
-                        CharSequence current = tvConsoleLogs.getText();
-                        if (current != null && current.toString().startsWith("💬 در حال ")) {
-                            tvConsoleLogs.setText("");
-                        }
-                        tvConsoleLogs.append(line + "\n");
-                        scrollToBottom();
-                    });
+                if (filterSmsAds && BotService.isSmsAd(line)) {
+                    return;
                 }
+                runOnUiThread(() -> {
+                    CharSequence current = tvConsoleLogs.getText();
+                    if (current != null && current.toString().contains("در حال انتظار")) {
+                        tvConsoleLogs.setText("");
+                    }
+                    tvConsoleLogs.append(ColorSpanHelper.parseSampColors(line));
+                    tvConsoleLogs.append("\n");
+                    scrollToBottom();
+                });
             }
         }
 
@@ -81,8 +67,6 @@ public class ChatActivity extends AppCompatActivity {
         ImageButton btnBack = findViewById(R.id.btnBack);
         Button btnSend = findViewById(R.id.btnSendMessage);
 
-        btnTabChat = findViewById(R.id.btnTabChat);
-        btnTabLogs = findViewById(R.id.btnTabLogs);
         cbFilterSmsAds = findViewById(R.id.cbFilterSmsAds);
 
         Button btnReconnect = findViewById(R.id.btnQuickReconnect);
@@ -92,28 +76,12 @@ public class ChatActivity extends AppCompatActivity {
         tvName.setText("👤 " + (accountNick != null ? accountNick : "اکانت"));
         btnBack.setOnClickListener(v -> finish());
 
-        // Tab selection logic
-        btnTabChat.setOnClickListener(v -> {
-            isChatOnlyMode = true;
-            updateTabStyles();
-            refreshConsoleDisplay();
-        });
-
-        btnTabLogs.setOnClickListener(v -> {
-            isChatOnlyMode = false;
-            updateTabStyles();
-            refreshConsoleDisplay();
-        });
-
         cbFilterSmsAds.setOnCheckedChangeListener((buttonView, isChecked) -> {
             filterSmsAds = isChecked;
-            if (isChatOnlyMode) {
-                refreshConsoleDisplay();
-            }
+            refreshConsoleDisplay();
         });
 
         // Initialize view
-        updateTabStyles();
         refreshConsoleDisplay();
 
         // Send chat message
@@ -135,46 +103,21 @@ public class ChatActivity extends AppCompatActivity {
         BotService.addLogCallback(chatLogCallback);
     }
 
-    private void updateTabStyles() {
-        if (isChatOnlyMode) {
-            btnTabChat.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary_red)));
-            btnTabChat.setTextColor(Color.WHITE);
-            btnTabLogs.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#242831")));
-            btnTabLogs.setTextColor(Color.parseColor("#B0B0B0"));
-            cbFilterSmsAds.setEnabled(true);
-            cbFilterSmsAds.setAlpha(1.0f);
-        } else {
-            btnTabChat.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#242831")));
-            btnTabChat.setTextColor(Color.parseColor("#B0B0B0"));
-            btnTabLogs.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary_red)));
-            btnTabLogs.setTextColor(Color.WHITE);
-            cbFilterSmsAds.setEnabled(false);
-            cbFilterSmsAds.setAlpha(0.4f);
-        }
-    }
-
     private void refreshConsoleDisplay() {
         if (accountId == null) return;
-        if (isChatOnlyMode) {
-            String chat = BotService.getChatForAccount(accountId);
-            if (chat.trim().isEmpty()) {
-                tvConsoleLogs.setText("💬 در حال اتصال به سرور و راه‌اندازی اسلیپ...\n");
-            } else {
-                if (filterSmsAds) {
-                    StringBuilder filtered = new StringBuilder();
-                    for (String line : chat.split("\n")) {
-                        if (!BotService.isSmsAd(line)) {
-                            filtered.append(line).append("\n");
-                        }
-                    }
-                    tvConsoleLogs.setText(filtered.length() > 0 ? filtered.toString() : "💬 در حال انتظار برای دریافت چت...\n");
-                } else {
-                    tvConsoleLogs.setText(chat);
-                }
-            }
+        String chat = BotService.getChatForAccount(accountId);
+        if (chat.trim().isEmpty()) {
+            tvConsoleLogs.setText(ColorSpanHelper.parseSampColors("{7E8B9B}💬 در حال انتظار برای دریافت چت رسمی سرور...\n"), TextView.BufferType.SPANNABLE);
         } else {
-            String logs = BotService.getLogsForAccount(accountId);
-            tvConsoleLogs.setText(!logs.trim().isEmpty() ? logs : "📜 لاگی برای این اکانت ثبت نشده است.\n");
+            SpannableStringBuilder ssb = new SpannableStringBuilder();
+            for (String line : chat.split("\n")) {
+                if (line.trim().isEmpty()) continue;
+                if (filterSmsAds && BotService.isSmsAd(line)) {
+                    continue;
+                }
+                ssb.append(ColorSpanHelper.parseSampColors(line)).append("\n");
+            }
+            tvConsoleLogs.setText(ssb.length() > 0 ? ssb : ColorSpanHelper.parseSampColors("{7E8B9B}💬 هیچ پیامی دریافت نشده است.\n"), TextView.BufferType.SPANNABLE);
         }
         scrollToBottom();
     }
@@ -190,17 +133,16 @@ public class ChatActivity extends AppCompatActivity {
             BotService.sendLocalCommand(accountNick, cmd, true);
 
             String timeStr = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-            String userLine = "[" + timeStr + "] 📤 من: " + cmd;
+            String userLine = "[" + timeStr + "] {00E5FF}📤 من: {FFFFFF}" + cmd;
             BotService.appendChat(accountId, userLine);
 
-            if (isChatOnlyMode) {
-                CharSequence current = tvConsoleLogs.getText();
-                if (current != null && current.toString().startsWith("💬 در حال ")) {
-                    tvConsoleLogs.setText("");
-                }
-                tvConsoleLogs.append(userLine + "\n");
-                scrollToBottom();
+            CharSequence current = tvConsoleLogs.getText();
+            if (current != null && current.toString().contains("در حال انتظار")) {
+                tvConsoleLogs.setText("");
             }
+            tvConsoleLogs.append(ColorSpanHelper.parseSampColors(userLine));
+            tvConsoleLogs.append("\n");
+            scrollToBottom();
         }
     }
 

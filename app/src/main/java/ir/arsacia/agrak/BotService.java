@@ -105,55 +105,11 @@ public class BotService extends Service {
         if (trimmed.isEmpty()) return false;
 
         // User outgoing command or message
-        if (trimmed.contains("📤 من:") || (trimmed.startsWith("> ") && !trimmed.startsWith("> /stats"))) {
+        if (trimmed.contains("📤 من:")) {
             return true;
         }
 
-        // Key connection and state events to show in chat console
-        if (trimmed.contains("Connecting to ") ||
-                trimmed.contains("Connected to ") ||
-                trimmed.contains("Connected. Joining the game") ||
-                trimmed.contains("Account confirmed in Sleep Mode") ||
-                trimmed.contains("اسلیپ فعال است") ||
-                trimmed.contains("Login dialog") ||
-                trimmed.contains("Password submitted successfully") ||
-                trimmed.contains("Notice/Launcher dialog") ||
-                trimmed.contains("You have been spawned") ||
-                trimmed.contains("You are banned") ||
-                trimmed.contains("You were kicked") ||
-                trimmed.contains("Connection was closed") ||
-                trimmed.contains("Server closed the connection")) {
-            return true;
-        }
-
-        // Filter out app and engine technical messages
-        if (trimmed.startsWith("[AGRak]") ||
-                trimmed.contains("[AutoLogin]") ||
-                trimmed.contains("[AutoStats]") ||
-                trimmed.contains("[RakSAMP]") ||
-                trimmed.contains("[LUA]") ||
-                trimmed.contains("NET]") ||
-                trimmed.contains("HandleRPCPacket") ||
-                trimmed.contains("[STEP]") ||
-                trimmed.contains("[لاگ موتور]") ||
-                trimmed.contains("=================================") ||
-                trimmed.contains("Loading scripts") ||
-                trimmed.contains("autologin.lua") ||
-                trimmed.contains("========== DIALOG") ||
-                trimmed.contains("Type response for") ||
-                trimmed.contains("Choice:") ||
-                trimmed.startsWith("[1] ") ||
-                trimmed.contains("[GAMETEXT]") ||
-                trimmed.contains("[AUDIO_STREAM]") ||
-                trimmed.contains("[MENU") ||
-                trimmed.contains("[SELECTABLE-TEXTDRAW]") ||
-                trimmed.contains("[DESTROYPICKUP]") ||
-                trimmed.contains("[CP]") ||
-                trimmed.startsWith("> /stats")) {
-            return false;
-        }
-
-        // Filter periodic stats dumps from the chat tab (they update the top stats cards)
+        // Filter periodic stats dumps from the chat view (they update top cards)
         if (trimmed.contains("*** [") && trimmed.contains(") ***")) return false;
         if (trimmed.contains("Account: Sex [") ||
                 trimmed.contains("Activity: Level [") ||
@@ -166,7 +122,7 @@ public class BotService extends Service {
             return false;
         }
 
-        // Must be SA:MP player chat or server client message
+        // Only official SA:MP server client messages or player chat
         if (trimmed.contains("[CHAT]") || trimmed.contains("[CMSG]")) {
             return true;
         }
@@ -207,26 +163,10 @@ public class BotService extends Service {
 
         if (formatted.startsWith("[CHAT]")) {
             String chatContent = formatted.substring(6).trim();
-            return timePrefix + "💬 [چت] " + chatContent;
+            return timePrefix + chatContent;
         } else if (formatted.startsWith("[CMSG]")) {
             String cmsgContent = formatted.substring(6).trim();
             return timePrefix + cmsgContent;
-        } else if (formatted.contains("Account confirmed in Sleep Mode") || formatted.contains("اسلیپ فعال است")) {
-            return timePrefix + "💤 [اسلیپ] اکانت با موفقیت در حالت اسلیپ تایید شد.";
-        } else if (formatted.contains("Login dialog") && formatted.contains("detected")) {
-            return timePrefix + "🔑 [ورود] دیالوگ ورود دریافت شد. در حال ارسال خودکار رمز عبور...";
-        } else if (formatted.contains("Password submitted successfully")) {
-            return timePrefix + "✅ [ورود] رمز عبور با موفقیت به سرور ارسال شد. اکانت در حالت اسلیپ مستقر می‌شود.";
-        } else if (formatted.contains("Notice/Launcher dialog") && formatted.contains("received")) {
-            return timePrefix + "📋 [اطلاعیه] دیالوگ اطلاع‌رسانی سرور دریافت و تایید شد.";
-        } else if (formatted.startsWith("Connecting to")) {
-            return timePrefix + "🔄 [اتصال] در حال اتصال به سرور آرساکیا گیم...";
-        } else if (formatted.startsWith("Connected to") || formatted.startsWith("Connected.")) {
-            return timePrefix + "🟢 [اتصال] اتصال موفق به سرور آرساکیا گیم";
-        } else if (formatted.contains("spawned")) {
-            return timePrefix + "🎮 [بازی] وضعیت آماده به کار (اسلیپ فعال).";
-        } else if (formatted.contains("kicked") || formatted.contains("closed the connection") || formatted.contains("banned")) {
-            return timePrefix + "🔴 [قطع] ارتباط با سرور قطع شد.";
         } else {
             return timePrefix + formatted;
         }

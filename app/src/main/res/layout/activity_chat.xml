@@ -113,54 +113,33 @@
         </LinearLayout>
     </HorizontalScrollView>
 
-    <!-- Filter Bar (Chat vs App Logs & SMS Filter) -->
+    <!-- Official Server Chat Header Bar -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="38dp"
         android:background="#15171D"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="4dp">
+        android:paddingHorizontal="12dp">
 
-        <Button
-            android:id="@+id/btnTabChat"
+        <TextView
             android:layout_width="0dp"
-            android:layout_height="34dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:backgroundTint="@color/primary_red"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingHorizontal="4dp"
-            android:text="💬 چت و رویدادهای سرور"
+            android:text="💬 چت رسمی و زنده سرور"
             android:textColor="@color/text_white"
-            android:textSize="11sp"
-            android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/btnTabLogs"
-            android:layout_width="0dp"
-            android:layout_height="34dp"
-            android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:backgroundTint="#242831"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            android:paddingHorizontal="4dp"
-            android:text="📜 لاگ کامل فنی"
-            android:textColor="@color/text_secondary"
-            android:textSize="11sp" />
+            android:textStyle="bold"
+            android:textSize="12sp" />
 
         <CheckBox
             android:id="@+id/cbFilterSmsAds"
             android:layout_width="wrap_content"
             android:layout_height="34dp"
-            android:layout_marginStart="6dp"
             android:checked="true"
             android:buttonTint="@color/accent_gold"
             android:text="حذف تبلیغ/SMS"
             android:textColor="#E0E0E0"
-            android:textSize="10sp" />
+            android:textSize="11sp" />
 
     </LinearLayout>
 
