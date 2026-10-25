@@ -73,7 +73,7 @@ public class ChatActivity extends AppCompatActivity {
         Button btnStats = findViewById(R.id.btnQuickStats);
         Button btnSleep = findViewById(R.id.btnQuickSleep);
 
-        tvName.setText("👤 " + (accountNick != null ? accountNick : "اکانت"));
+        tvName.setText(accountNick != null ? accountNick : "اکانت");
         btnBack.setOnClickListener(v -> finish());
 
         cbFilterSmsAds.setOnCheckedChangeListener((buttonView, isChecked) -> {

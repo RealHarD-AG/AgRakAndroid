@@ -23,15 +23,32 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/tvAccountNick"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="نام اکانت"
-                android:textColor="@color/text_white"
-                android:textSize="17sp"
-                android:textStyle="bold" />
+                android:gravity="start|center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/imgVerifiedBadge"
+                    android:layout_width="19dp"
+                    android:layout_height="19dp"
+                    android:layout_marginEnd="6dp"
+                    android:src="@drawable/ic_instagram_verified"
+                    android:contentDescription="تیک آبی" />
+
+                <TextView
+                    android:id="@+id/tvAccountNick"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="نام اکانت"
+                    android:textColor="@color/text_white"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:ellipsize="end" />
+            </LinearLayout>
 
             <!-- Edit Icon -->
             <ImageButton
