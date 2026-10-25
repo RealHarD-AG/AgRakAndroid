@@ -11,6 +11,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -238,10 +239,26 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
         TextView tvTitle = dialogView.findViewById(R.id.tvDialogTitle);
         EditText etNick = dialogView.findViewById(R.id.etNickname);
         EditText etPass = dialogView.findViewById(R.id.etPassword);
+        ImageView btnTogglePass = dialogView.findViewById(R.id.btnTogglePassword);
         SwitchCompat swAutoLogin = dialogView.findViewById(R.id.switchAutoLogin);
         SwitchCompat swAntiAfk = dialogView.findViewById(R.id.switchAntiAfk);
         Button btnSave = dialogView.findViewById(R.id.btnSaveAccount);
         Button btnCancel = dialogView.findViewById(R.id.btnCancelDialog);
+
+        final boolean[] isPassVisible = {false};
+        if (btnTogglePass != null) {
+            btnTogglePass.setOnClickListener(v -> {
+                isPassVisible[0] = !isPassVisible[0];
+                if (isPassVisible[0]) {
+                    etPass.setTransformationMethod(android.text.method.HideReturnsTransformationMethod.getInstance());
+                    btnTogglePass.setImageResource(R.drawable.ic_visibility);
+                } else {
+                    etPass.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+                    btnTogglePass.setImageResource(R.drawable.ic_visibility_off);
+                }
+                etPass.setSelection(etPass.getText().length());
+            });
+        }
 
         if (accountToEdit != null) {
             tvTitle.setText(R.string.dialog_edit_title);
