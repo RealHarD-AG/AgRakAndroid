@@ -86,7 +86,8 @@
     <!-- Accounts List -->
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvAccounts"
@@ -109,5 +110,61 @@
             android:visibility="gone" />
 
     </FrameLayout>
+
+    <!-- Footer Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#252A36" />
+
+    <!-- Forum-style Footer -->
+    <LinearLayout
+        android:id="@+id/layoutFooter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layoutDirection="ltr"
+        android:paddingTop="10dp"
+        android:paddingBottom="12dp"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:background="#15171F">
+
+        <TextView
+            android:id="@+id/tvFooterYear"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/footer_copyright"
+            android:textColor="#9E9E9E"
+            android:textSize="11sp" />
+
+        <ImageView
+            android:id="@+id/imgFooterHeart"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="5dp"
+            android:layout_marginEnd="5dp"
+            android:src="@drawable/ic_heart"
+            android:contentDescription="Arsacia Heart" />
+
+        <TextView
+            android:id="@+id/tvFooterBrand"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/footer_brand"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/tvFooterRights"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="@string/footer_rights"
+            android:textColor="#9E9E9E"
+            android:textSize="11sp" />
+    </LinearLayout>
 
 </LinearLayout>

@@ -34,4 +34,9 @@
     <string name="stat_rob">💰 راب پوینت: %s</string>
     <string name="stat_escape">🔓 اسکیپ پوینت: %s</string>
     <string name="no_accounts">هیچ اکانتی اضافه نشده است. برای شروع دکمه «+ افزودن اکانت جدید» را بزنید.</string>
+    
+    <!-- Forum-style Footer -->
+    <string name="footer_copyright">© 2014-2026</string>
+    <string name="footer_brand">ArSaCiA Game</string>
+    <string name="footer_rights">ALL RIGHTS RESERVED</string>
 </resources>

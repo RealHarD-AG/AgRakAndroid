@@ -173,6 +173,32 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             Toast.makeText(this, "تمام اکانت‌ها قطع شدند", Toast.LENGTH_SHORT).show();
         });
 
+        // Animate footer heartbeat like https://forum.arsacia.ir
+        ImageView imgFooterHeart = findViewById(R.id.imgFooterHeart);
+        if (imgFooterHeart != null) {
+            android.view.animation.ScaleAnimation heartbeat = new android.view.animation.ScaleAnimation(
+                    0.80f, 1.22f,
+                    0.80f, 1.22f,
+                    android.view.animation.Animation.RELATIVE_TO_SELF, 0.5f,
+                    android.view.animation.Animation.RELATIVE_TO_SELF, 0.5f
+            );
+            heartbeat.setDuration(600);
+            heartbeat.setRepeatMode(android.view.animation.Animation.REVERSE);
+            heartbeat.setRepeatCount(android.view.animation.Animation.INFINITE);
+            heartbeat.setInterpolator(new android.view.animation.AccelerateDecelerateInterpolator());
+            imgFooterHeart.startAnimation(heartbeat);
+        }
+
+        View layoutFooter = findViewById(R.id.layoutFooter);
+        if (layoutFooter != null) {
+            layoutFooter.setOnClickListener(v -> {
+                try {
+                    Intent browserIntent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://forum.arsacia.ir"));
+                    startActivity(browserIntent);
+                } catch (Exception ignored) {}
+            });
+        }
+
         BotService.addLogCallback(mainLogCallback);
         startBotService();
     }
