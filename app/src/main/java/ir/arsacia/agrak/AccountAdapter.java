@@ -111,7 +111,6 @@ public class AccountAdapter extends RecyclerView.Adapter<AccountAdapter.ViewHold
             holder.layoutStats.setOnClickListener(v -> {
                 if (acc.getStatus() == AccountModel.Status.ONLINE) {
                     BotService.sendLocalCommand(acc.getNickname(), "/stats");
-                    android.widget.Toast.makeText(context, "در حال استعلام آمار اکانت...", android.widget.Toast.LENGTH_SHORT).show();
                 }
             });
         }
