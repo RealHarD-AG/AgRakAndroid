@@ -49,6 +49,7 @@ public class BotService extends Service {
         default void onNewChat(String accountId, String line) {}
         void onStatsUpdated(String accountId, String level, String respect, String rob, String escape);
         default void onConnected(String accountId) {}
+        default void onDisconnected(String accountId) {}
     }
 
     private static final List<LogCallback> logCallbacks = new CopyOnWriteArrayList<>();
@@ -60,6 +61,7 @@ public class BotService extends Service {
     private static final Map<String, Process> activeProcesses = new ConcurrentHashMap<>();
     private static final Map<String, Thread> readerThreads = new ConcurrentHashMap<>();
     private static final Map<String, String> nickToAccountId = new ConcurrentHashMap<>();
+    private static final Map<String, Boolean> connectedAccounts = new ConcurrentHashMap<>();
 
     private PowerManager.WakeLock wakeLock;
 
@@ -363,6 +365,11 @@ public class BotService extends Service {
         return false;
     }
 
+    public static boolean isAccountConnected(String nickname) {
+        if (nickname == null) return false;
+        return Boolean.TRUE.equals(connectedAccounts.get(nickname.toLowerCase()));
+    }
+
     public static int getActiveBotsCount() {
         int count = 0;
         for (Map.Entry<String, Process> entry : activeProcesses.entrySet()) {
@@ -378,6 +385,7 @@ public class BotService extends Service {
         String nick = acc.getNickname().trim();
         String key = nick.toLowerCase();
         nickToAccountId.put(key, acc.getId());
+        connectedAccounts.put(key, false);
 
         // Stop existing process if any
         stopLocalBot(nick);
@@ -445,35 +453,56 @@ public class BotService extends Service {
 
                         String lower = line.toLowerCase();
 
-                        // Notify when account connects to the server
-                        if (!hasShownConnectedToast.get()) {
-                            if (lower.contains("connected. joining the game")
-                                    || lower.contains("connected to ")
-                                    || lower.contains("confirmed in sleep mode")
-                                    || lower.contains("welcome ")
-                                    || lower.contains("type response for")) {
-                                if (!hasShownConnectedToast.getAndSet(true)) {
-                                    final String nickDisplay = (acc.getNickname() != null && !acc.getNickname().trim().isEmpty())
-                                            ? acc.getNickname().trim() : acc.getId();
-                                    if (appContext != null) {
-                                        new Handler(Looper.getMainLooper()).post(() -> {
-                                            Toast.makeText(appContext, "✅ اکانت " + nickDisplay + " با موفقیت وارد سرور شد", Toast.LENGTH_SHORT).show();
-                                        });
-                                    }
-                                    for (LogCallback cb : logCallbacks) {
-                                        try {
-                                            cb.onConnected(acc.getId());
-                                        } catch (Exception ignored) {}
-                                    }
+                        // Check if account has ACTUALLY entered the server world
+                        boolean isActuallyInServer = lower.contains("you have been spawned")
+                                || lower.contains("spawned!")
+                                || lower.contains("confirmed in sleep mode")
+                                || lower.contains("put to sleep")
+                                || lower.contains("welcome ")
+                                || lower.contains("using raksamp")
+                                || (lower.contains("level [") && lower.contains("respect ["));
+
+                        // Check if server disconnected, kicked, or encountered an error
+                        boolean isDisconnectOrError = lower.contains("disconnected")
+                                || lower.contains("reconnecting")
+                                || lower.contains("server closed the connection")
+                                || lower.contains("connection was closed")
+                                || lower.contains("already logged in")
+                                || lower.contains("you are banned")
+                                || lower.contains("kicked")
+                                || lower.contains("connection rejected")
+                                || lower.contains("the server did not respond");
+
+                        if (isActuallyInServer) {
+                            Boolean wasConnected = connectedAccounts.put(key, true);
+                            if (wasConnected == null || !wasConnected) {
+                                for (LogCallback cb : logCallbacks) {
+                                    try {
+                                        cb.onConnected(acc.getId());
+                                    } catch (Exception ignored) {}
                                 }
                             }
-                        } else {
-                            if (lower.contains("disconnected")
-                                    || lower.contains("reconnecting")
-                                    || lower.contains("server closed the connection")
-                                    || lower.contains("connection was closed")) {
-                                hasShownConnectedToast.set(false);
+                            // Show connection toast ONLY ONCE per session, only when actually in server
+                            if (!hasShownConnectedToast.getAndSet(true)) {
+                                final String nickDisplay = (acc.getNickname() != null && !acc.getNickname().trim().isEmpty())
+                                        ? acc.getNickname().trim() : acc.getId();
+                                if (appContext != null) {
+                                    new Handler(Looper.getMainLooper()).post(() -> {
+                                        Toast.makeText(appContext, "✅ اکانت " + nickDisplay + " با موفقیت وارد سرور شد", Toast.LENGTH_SHORT).show();
+                                    });
+                                }
                             }
+                        } else if (isDisconnectOrError) {
+                            Boolean wasConnected = connectedAccounts.put(key, false);
+                            if (wasConnected == null || wasConnected) {
+                                for (LogCallback cb : logCallbacks) {
+                                    try {
+                                        cb.onDisconnected(acc.getId());
+                                    } catch (Exception ignored) {}
+                                }
+                            }
+                            // IMPORTANT: DO NOT reset hasShownConnectedToast!
+                            // It must never re-trigger if an error occurs or on auto-reconnect loops.
                         }
 
                         // Auto-response in Java as backup if console prompts for password
@@ -527,6 +556,12 @@ public class BotService extends Service {
                         }
                     } catch (Exception ignored) {}
                     activeProcesses.remove(key);
+                    connectedAccounts.remove(key);
+                    for (LogCallback cb : logCallbacks) {
+                        try {
+                            cb.onDisconnected(acc.getId());
+                        } catch (Exception ignored) {}
+                    }
                     appendLog(acc.getId(), "[AGRak] وضعیت اکانت: قطع اتصال (آفلاین).");
                 }
             });
@@ -543,6 +578,7 @@ public class BotService extends Service {
     public static synchronized void stopLocalBot(String nickname) {
         if (nickname == null) return;
         String key = nickname.toLowerCase();
+        connectedAccounts.remove(key);
         Process proc = activeProcesses.remove(key);
         if (proc != null) {
             try {

@@ -146,6 +146,25 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                 }
             });
         }
+
+        @Override
+        public void onDisconnected(String accountId) {
+            runOnUiThread(() -> {
+                boolean changed = false;
+                for (AccountModel acc : accounts) {
+                    if (acc.getId().equals(accountId) || (acc.getNickname() != null && acc.getNickname().equalsIgnoreCase(accountId))) {
+                        if (acc.getStatus() == AccountModel.Status.ONLINE) {
+                            acc.setStatus(AccountModel.Status.CONNECTING);
+                            changed = true;
+                        }
+                        break;
+                    }
+                }
+                if (changed && adapter != null) {
+                    adapter.notifyDataSetChanged();
+                }
+            });
+        }
     };
 
     @Override
@@ -229,9 +248,12 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
         for (AccountModel acc : accounts) {
             String key = acc.getNickname().toLowerCase();
             boolean running = BotService.isBotRunning(acc.getNickname());
-            if (running) {
+            boolean connected = BotService.isAccountConnected(acc.getNickname());
+            if (connected) {
                 startingBots.remove(key);
                 acc.setStatus(AccountModel.Status.ONLINE);
+            } else if (running) {
+                acc.setStatus(AccountModel.Status.CONNECTING);
             } else {
                 Long startAttempt = startingBots.get(key);
                 if (startAttempt == null || (now - startAttempt) >= 7000) {

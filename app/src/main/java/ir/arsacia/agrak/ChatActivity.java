@@ -67,6 +67,28 @@ public class ChatActivity extends AppCompatActivity {
         public void onStatsUpdated(String accId, String level, String respect, String rob, String escape) {
             // Stats display removed from console
         }
+
+        @Override
+        public void onConnected(String accId) {
+            if (accountId != null && accountId.equals(accId)) {
+                runOnUiThread(() -> {
+                    if (tvChatStatus != null) {
+                        tvChatStatus.setText("🟢 آنلاین در آرساکیا");
+                    }
+                });
+            }
+        }
+
+        @Override
+        public void onDisconnected(String accId) {
+            if (accountId != null && accountId.equals(accId)) {
+                runOnUiThread(() -> {
+                    if (tvChatStatus != null) {
+                        tvChatStatus.setText("🟡 در حال اتصال به سرور...");
+                    }
+                });
+            }
+        }
     };
 
     @Override
@@ -91,7 +113,8 @@ public class ChatActivity extends AppCompatActivity {
 
         tvName.setText(accountNick != null ? accountNick : "اکانت");
         if (tvChatStatus != null) {
-            tvChatStatus.setText("🟢 آنلاین در آرساکیا");
+            boolean isOnline = BotService.isAccountConnected(accountNick);
+            tvChatStatus.setText(isOnline ? "🟢 آنلاین در آرساکیا" : "🟡 در حال اتصال به سرور...");
         }
         btnBack.setOnClickListener(v -> finish());
 
