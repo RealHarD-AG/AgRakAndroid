@@ -75,15 +75,17 @@
                 android:textColor="@color/text_white"
                 android:textSize="14sp"
                 android:inputType="textPassword"
-                android:paddingStart="12dp"
-                android:paddingEnd="44dp"
+                android:paddingStart="44dp"
+                android:paddingEnd="12dp"
+                android:paddingRight="44dp"
+                android:paddingLeft="12dp"
                 android:singleLine="true" />
 
             <ImageView
                 android:id="@+id/btnTogglePassword"
                 android:layout_width="44dp"
                 android:layout_height="match_parent"
-                android:layout_gravity="end|center_vertical"
+                android:layout_gravity="right|center_vertical"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:padding="10dp"
                 android:src="@drawable/ic_visibility_off"
