@@ -65,18 +65,7 @@ public class ChatActivity extends AppCompatActivity {
 
         @Override
         public void onStatsUpdated(String accId, String level, String respect, String rob, String escape) {
-            if (accountId != null && (accountId.equals(accId) || (accountNick != null && accountNick.equalsIgnoreCase(accId)))) {
-                runOnUiThread(() -> {
-                    if (tvChatStatus != null) {
-                        String st = "🟢 آنلاین | لول: " + level + " | رسپکت: " + respect;
-                        if (!"--".equals(rob) || !"--".equals(escape)) {
-                            st += " | راب: " + rob;
-                        }
-                        tvChatStatus.setText(st);
-                    }
-                    Toast.makeText(ChatActivity.this, "اطلاعات مشخصات اکانت به‌روزرسانی شد (لول: " + level + "، رسپکت: " + respect + ")", Toast.LENGTH_SHORT).show();
-                });
-            }
+            // Stats display removed from console
         }
     };
 
@@ -99,24 +88,12 @@ public class ChatActivity extends AppCompatActivity {
         cbFilterSmsAds = findViewById(R.id.cbFilterSmsAds);
 
         Button btnReconnect = findViewById(R.id.btnQuickReconnect);
-        Button btnStats = findViewById(R.id.btnQuickStats);
-        Button btnSleep = findViewById(R.id.btnQuickSleep);
 
         tvName.setText(accountNick != null ? accountNick : "اکانت");
+        if (tvChatStatus != null) {
+            tvChatStatus.setText("🟢 آنلاین در آرساکیا");
+        }
         btnBack.setOnClickListener(v -> finish());
-
-        // Initial sync of cached stats in chat header
-        String[] initialStats = BotService.getCachedStats(accountId);
-        if (initialStats == null && accountNick != null) {
-            initialStats = BotService.getCachedStats(accountNick);
-        }
-        if (initialStats != null && tvChatStatus != null) {
-            String st = "🟢 آنلاین | لول: " + initialStats[0] + " | رسپکت: " + initialStats[1];
-            if (!"--".equals(initialStats[2]) || !"--".equals(initialStats[3])) {
-                st += " | راب: " + initialStats[2];
-            }
-            tvChatStatus.setText(st);
-        }
 
         cbFilterSmsAds.setOnCheckedChangeListener((buttonView, isChecked) -> {
             filterSmsAds = isChecked;
@@ -130,29 +107,13 @@ public class ChatActivity extends AppCompatActivity {
         btnSend.setOnClickListener(v -> {
             String msg = etChatMessage.getText().toString().trim();
             if (!msg.isEmpty()) {
-                if (msg.equalsIgnoreCase("/stats")) {
-                    if (accountNick != null) {
-                        BotService.sendLocalCommand(accountNick, "/stats", false);
-                        Toast.makeText(this, "در حال استعلام و به‌روزرسانی مشخصات اکانت...", Toast.LENGTH_SHORT).show();
-                    }
-                } else {
-                    sendUserCommand(msg);
-                }
+                sendUserCommand(msg);
                 etChatMessage.setText("");
             }
         });
 
-        // Quick Command Shortcuts
+        // Quick Reconnect Shortcut only
         btnReconnect.setOnClickListener(v -> sendUserCommand("!reconnect"));
-        if (btnStats != null) {
-            btnStats.setOnClickListener(v -> {
-                if (accountNick != null) {
-                    BotService.sendLocalCommand(accountNick, "/stats", false);
-                    Toast.makeText(this, "در حال استعلام و به‌روزرسانی مشخصات اکانت...", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-        btnSleep.setOnClickListener(v -> sendUserCommand("/sleep"));
 
         BotService.addLogCallback(chatLogCallback);
     }
