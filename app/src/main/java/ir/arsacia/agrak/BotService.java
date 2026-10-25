@@ -8,9 +8,12 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.util.Log;
+import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import java.io.BufferedReader;
@@ -32,6 +35,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,6 +48,7 @@ public class BotService extends Service {
         void onNewLog(String accountId, String line);
         default void onNewChat(String accountId, String line) {}
         void onStatsUpdated(String accountId, String level, String respect, String rob, String escape);
+        default void onConnected(String accountId) {}
     }
 
     private static final List<LogCallback> logCallbacks = new CopyOnWriteArrayList<>();
@@ -431,12 +436,45 @@ public class BotService extends Service {
 
             // Read output stream
             Thread readerThread = new Thread(() -> {
+                final Context appContext = context != null ? context.getApplicationContext() : null;
+                final AtomicBoolean hasShownConnectedToast = new AtomicBoolean(false);
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
                         appendLog(acc.getId(), line);
 
                         String lower = line.toLowerCase();
+
+                        // Notify when account connects to the server
+                        if (!hasShownConnectedToast.get()) {
+                            if (lower.contains("connected. joining the game")
+                                    || lower.contains("connected to ")
+                                    || lower.contains("confirmed in sleep mode")
+                                    || lower.contains("welcome ")
+                                    || lower.contains("type response for")) {
+                                if (!hasShownConnectedToast.getAndSet(true)) {
+                                    final String nickDisplay = (acc.getNickname() != null && !acc.getNickname().trim().isEmpty())
+                                            ? acc.getNickname().trim() : acc.getId();
+                                    if (appContext != null) {
+                                        new Handler(Looper.getMainLooper()).post(() -> {
+                                            Toast.makeText(appContext, "✅ اکانت " + nickDisplay + " با موفقیت وارد سرور شد", Toast.LENGTH_SHORT).show();
+                                        });
+                                    }
+                                    for (LogCallback cb : logCallbacks) {
+                                        try {
+                                            cb.onConnected(acc.getId());
+                                        } catch (Exception ignored) {}
+                                    }
+                                }
+                            }
+                        } else {
+                            if (lower.contains("disconnected")
+                                    || lower.contains("reconnecting")
+                                    || lower.contains("server closed the connection")
+                                    || lower.contains("connection was closed")) {
+                                hasShownConnectedToast.set(false);
+                            }
+                        }
 
                         // Auto-response in Java as backup if console prompts for password
                         if (acc.isAutoLogin()) {

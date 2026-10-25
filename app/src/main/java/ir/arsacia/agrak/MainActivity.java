@@ -127,6 +127,25 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                 }
             });
         }
+
+        @Override
+        public void onConnected(String accountId) {
+            runOnUiThread(() -> {
+                boolean changed = false;
+                for (AccountModel acc : accounts) {
+                    if (acc.getId().equals(accountId) || (acc.getNickname() != null && acc.getNickname().equalsIgnoreCase(accountId))) {
+                        if (acc.getStatus() != AccountModel.Status.ONLINE) {
+                            acc.setStatus(AccountModel.Status.ONLINE);
+                            changed = true;
+                        }
+                        break;
+                    }
+                }
+                if (changed && adapter != null) {
+                    adapter.notifyDataSetChanged();
+                }
+            });
+        }
     };
 
     @Override
