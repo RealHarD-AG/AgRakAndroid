@@ -241,15 +241,8 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
         }
 
         BotService.addLogCallback(mainLogCallback);
-        startBotService();
-    }
-
-    private void startBotService() {
-        Intent serviceIntent = new Intent(this, BotService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(serviceIntent);
-        } else {
-            startService(serviceIntent);
+        if (BotService.getActiveBotsCount() > 0) {
+            BotService.ensureServiceStarted(this);
         }
     }
 

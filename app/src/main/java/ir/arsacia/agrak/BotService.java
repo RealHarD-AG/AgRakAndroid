@@ -64,6 +64,7 @@ public class BotService extends Service {
     private static final Map<String, String> nickToAccountId = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> connectedAccounts = new ConcurrentHashMap<>();
 
+    private static volatile BotService instance = null;
     private PowerManager.WakeLock wakeLock;
 
     private static final Pattern PATTERN_LEVEL_RESPECT = Pattern.compile("Level\\s*\\[(\\d+)\\]\\s*Respect\\s*\\[([0-9/]+)\\]", Pattern.CASE_INSENSITIVE);
@@ -499,6 +500,9 @@ public class BotService extends Service {
             Process process = pb.start();
             activeProcesses.put(key, process);
 
+            ensureServiceStarted(context);
+            updateNotification();
+
             // Read output stream
             Thread readerThread = new Thread(() -> {
                 final Context appContext = context != null ? context.getApplicationContext() : null;
@@ -549,6 +553,7 @@ public class BotService extends Service {
                                     } catch (Exception ignored) {}
                                 }
                             }
+                            updateNotification();
                             // Show connection toast ONLY ONCE per session, only when actually in server
                             if (!hasShownConnectedToast.getAndSet(true)) {
                                 final String nickDisplay = (acc.getNickname() != null && !acc.getNickname().trim().isEmpty())
@@ -561,6 +566,7 @@ public class BotService extends Service {
                             }
                         } else if (isDisconnectOrError) {
                             connectedAccounts.put(key, false);
+                            updateNotification();
                             for (LogCallback cb : logCallbacks) {
                                 try {
                                     cb.onDisconnected(acc.getId());
@@ -630,6 +636,7 @@ public class BotService extends Service {
                             cb.onDisconnected(acc.getId());
                         } catch (Exception ignored) {}
                     }
+                    updateNotification();
                 }
             });
             readerThread.setDaemon(true);
@@ -675,6 +682,7 @@ public class BotService extends Service {
                 cb.onDisconnected(key);
             } catch (Exception ignored) {}
         }
+        updateNotification();
     }
 
     public static void sendLocalCommand(String nickname, String cmd) {
@@ -797,12 +805,108 @@ public class BotService extends Service {
         }
     }
 
+    public static void ensureServiceStarted(Context context) {
+        if (context == null) return;
+        try {
+            Intent intent = new Intent(context.getApplicationContext(), BotService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.getApplicationContext().startForegroundService(intent);
+            } else {
+                context.getApplicationContext().startService(intent);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting BotService", e);
+        }
+    }
+
+    public static void updateNotification() {
+        BotService service = instance;
+        if (service == null) return;
+        int activeCount = getActiveBotsCount();
+        if (activeCount == 0) {
+            service.stopForegroundAndService();
+        } else {
+            service.refreshNotification(activeCount);
+        }
+    }
+
+    public void stopForegroundAndService() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE);
+            } else {
+                stopForeground(true);
+            }
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.cancel(NOTIFICATION_ID);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error stopping foreground", e);
+        }
+        releaseWakeLock();
+        stopSelf();
+    }
+
+    public void refreshNotification(int activeCount) {
+        try {
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.notify(NOTIFICATION_ID, createNotification(buildNotificationText(activeCount)));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error refreshing notification", e);
+        }
+    }
+
+    public static String buildNotificationText(int activeCount) {
+        int onlineCount = 0;
+        List<String> onlineNicks = new ArrayList<>();
+        List<String> connectingNicks = new ArrayList<>();
+
+        for (String nick : activeProcesses.keySet()) {
+            if (isAccountConnected(nick)) {
+                onlineCount++;
+                onlineNicks.add(nick);
+            } else {
+                connectingNicks.add(nick);
+            }
+        }
+
+        if (activeCount == 1) {
+            if (onlineCount == 1 && !onlineNicks.isEmpty()) {
+                return "اکانت " + onlineNicks.get(0) + " در سرور آرساکیا آنلاین است";
+            } else if (!connectingNicks.isEmpty()) {
+                return "اکانت " + connectingNicks.get(0) + " در حال اتصال به سرور...";
+            } else {
+                return "۱ اکانت فعال در سرور آرساکیا";
+            }
+        } else {
+            if (onlineCount > 0 && onlineCount == activeCount) {
+                return activeCount + " اکانت در سرور آرساکیا آنلاین است";
+            } else if (onlineCount > 0) {
+                return onlineCount + " از " + activeCount + " اکانت آنلاین در سرور آرساکیا";
+            } else {
+                return activeCount + " اکانت در حال اتصال به سرور آرساکیا...";
+            }
+        }
+    }
+
     @Override
     public void onCreate() {
         super.onCreate();
+        instance = this;
         createNotificationChannel();
         acquireWakeLock();
-        startForeground(NOTIFICATION_ID, createNotification("سرویس داخلی راک‌سمپ AGRak آماده است"));
+
+        int activeCount = getActiveBotsCount();
+        if (activeCount == 0) {
+            startForeground(NOTIFICATION_ID, createNotification("سرویس AGRak در حال آماده‌سازی..."));
+            stopForegroundAndService();
+            return;
+        }
+
+        startForeground(NOTIFICATION_ID, createNotification(buildNotificationText(activeCount)));
 
         // Periodically refresh stats every 90 seconds for all active bots (silent)
         scheduler.scheduleWithFixedDelay(() -> {
@@ -814,12 +918,26 @@ public class BotService extends Service {
         }, 30, 90, TimeUnit.SECONDS);
     }
 
-    private void acquireWakeLock() {
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        if (pm != null) {
-            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AGRak:BotWakeLock");
-            wakeLock.acquire();
-        }
+    private synchronized void acquireWakeLock() {
+        try {
+            if (wakeLock == null) {
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (pm != null) {
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "AGRak:BotWakeLock");
+                }
+            }
+            if (wakeLock != null && !wakeLock.isHeld()) {
+                wakeLock.acquire();
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private synchronized void releaseWakeLock() {
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) {
+                wakeLock.release();
+            }
+        } catch (Exception ignored) {}
     }
 
     private void createNotificationChannel() {
@@ -853,26 +971,22 @@ public class BotService extends Service {
                 .build();
     }
 
-    public void updateNotificationContent(int activeCount) {
-        String msg = activeCount > 0
-                ? activeCount + " اکانت آنلاین با اینترنت گوشی در سرور 185.112.33.99"
-                : "آماده اتصال به سرور آرساکیا (مستقل)";
-        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (manager != null) {
-            manager.notify(NOTIFICATION_ID, createNotification(msg));
-        }
-    }
-
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        return START_STICKY;
+        int activeCount = getActiveBotsCount();
+        if (activeCount == 0) {
+            stopForegroundAndService();
+        } else {
+            acquireWakeLock();
+            refreshNotification(activeCount);
+        }
+        return START_NOT_STICKY;
     }
 
     @Override
     public void onDestroy() {
-        if (wakeLock != null && wakeLock.isHeld()) {
-            wakeLock.release();
-        }
+        releaseWakeLock();
+        instance = null;
         for (String nick : activeProcesses.keySet()) {
             stopLocalBot(nick);
         }
