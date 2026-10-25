@@ -70,23 +70,30 @@ public class ChatActivity extends AppCompatActivity {
 
         @Override
         public void onConnected(String accId) {
-            if (accountId != null && accountId.equals(accId)) {
+            if (accountId != null && (accountId.equals(accId) || (accountNick != null && accountNick.equalsIgnoreCase(accId)))) {
                 runOnUiThread(() -> {
-                    if (tvChatStatus != null) {
-                        tvChatStatus.setText("🟢 آنلاین در آرساکیا");
-                    }
+                    updateChatStatus();
                 });
             }
         }
 
         @Override
         public void onDisconnected(String accId) {
-            if (accountId != null && accountId.equals(accId)) {
+            if (accountId != null && (accountId.equals(accId) || (accountNick != null && accountNick.equalsIgnoreCase(accId)))) {
                 runOnUiThread(() -> {
-                    if (tvChatStatus != null) {
-                        tvChatStatus.setText("🟡 در حال اتصال به سرور...");
+                    updateChatStatus();
+                    if (!BotService.isBotRunning(accountNick)) {
+                        BotService.clearAccountLogsAndChat(accId);
                     }
+                    refreshConsoleDisplay();
                 });
+            }
+        }
+
+        @Override
+        public void onAccountCleared(String accId) {
+            if (accountId != null && (accountId.equals(accId) || (accountNick != null && accountNick.equalsIgnoreCase(accId)))) {
+                runOnUiThread(() -> refreshConsoleDisplay());
             }
         }
     };
@@ -112,10 +119,7 @@ public class ChatActivity extends AppCompatActivity {
         Button btnReconnect = findViewById(R.id.btnQuickReconnect);
 
         tvName.setText(accountNick != null ? accountNick : "اکانت");
-        if (tvChatStatus != null) {
-            boolean isOnline = BotService.isAccountConnected(accountNick);
-            tvChatStatus.setText(isOnline ? "🟢 آنلاین در آرساکیا" : "🟡 در حال اتصال به سرور...");
-        }
+        updateChatStatus();
         btnBack.setOnClickListener(v -> finish());
 
         cbFilterSmsAds.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -141,10 +145,38 @@ public class ChatActivity extends AppCompatActivity {
         BotService.addLogCallback(chatLogCallback);
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        updateChatStatus();
+        refreshConsoleDisplay();
+    }
+
+    private void updateChatStatus() {
+        if (tvChatStatus == null) return;
+        boolean running = BotService.isBotRunning(accountNick);
+        boolean connected = BotService.isAccountConnected(accountNick);
+        if (connected) {
+            tvChatStatus.setText("🟢 آنلاین در آرساکیا");
+            tvChatStatus.setTextColor(getResources().getColor(R.color.status_green));
+        } else if (running) {
+            tvChatStatus.setText("🟡 در حال اتصال به سرور...");
+            tvChatStatus.setTextColor(getResources().getColor(R.color.status_yellow));
+        } else {
+            tvChatStatus.setText("🔴 آفلاین");
+            tvChatStatus.setTextColor(getResources().getColor(R.color.status_red));
+        }
+    }
+
     private void refreshConsoleDisplay() {
         if (accountId == null) return;
+        boolean running = BotService.isBotRunning(accountNick);
+        if (!running) {
+            tvConsoleLogs.setText(ColorSpanHelper.parseSampColors("{7E8B9B}💬 اکانت آفلاین است. برای مشاهده چت، ربات را روشن کنید.\n"), TextView.BufferType.SPANNABLE);
+            return;
+        }
         String chat = BotService.getChatForAccount(accountId);
-        if (chat.trim().isEmpty()) {
+        if (chat == null || chat.trim().isEmpty()) {
             tvConsoleLogs.setText(ColorSpanHelper.parseSampColors("{7E8B9B}💬 در حال انتظار برای دریافت چت رسمی سرور...\n"), TextView.BufferType.SPANNABLE);
         } else {
             SpannableStringBuilder ssb = new SpannableStringBuilder();
@@ -171,6 +203,10 @@ public class ChatActivity extends AppCompatActivity {
 
     private void sendUserCommand(String cmd) {
         if (accountNick != null && !cmd.isEmpty()) {
+            if (!BotService.isBotRunning(accountNick)) {
+                Toast.makeText(this, "اکانت آفلاین است و امکان ارسال دستور وجود ندارد", Toast.LENGTH_SHORT).show();
+                return;
+            }
             BotService.sendLocalCommand(accountNick, cmd, true);
 
             String timeStr = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());

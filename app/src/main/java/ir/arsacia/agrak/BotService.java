@@ -50,6 +50,7 @@ public class BotService extends Service {
         void onStatsUpdated(String accountId, String level, String respect, String rob, String escape);
         default void onConnected(String accountId) {}
         default void onDisconnected(String accountId) {}
+        default void onAccountCleared(String accountId) {}
     }
 
     private static final List<LogCallback> logCallbacks = new CopyOnWriteArrayList<>();
@@ -95,6 +96,37 @@ public class BotService extends Service {
         if (accountId == null) return "";
         StringBuilder sb = accountChat.get(accountId);
         return sb != null ? sb.toString() : "";
+    }
+
+    public static void clearAccountLogsAndChat(String accountIdOrNick) {
+        if (accountIdOrNick == null) return;
+        accountLogs.remove(accountIdOrNick);
+        accountChat.remove(accountIdOrNick);
+
+        String lower = accountIdOrNick.toLowerCase();
+        accountLogs.remove(lower);
+        accountChat.remove(lower);
+
+        String mappedId = nickToAccountId.get(lower);
+        if (mappedId != null) {
+            accountLogs.remove(mappedId);
+            accountChat.remove(mappedId);
+        }
+        for (Map.Entry<String, String> entry : nickToAccountId.entrySet()) {
+            if (accountIdOrNick.equalsIgnoreCase(entry.getValue())) {
+                accountLogs.remove(entry.getKey());
+                accountChat.remove(entry.getKey());
+            }
+        }
+
+        for (LogCallback cb : logCallbacks) {
+            try {
+                cb.onAccountCleared(accountIdOrNick);
+                if (mappedId != null) {
+                    cb.onAccountCleared(mappedId);
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     public static void appendChat(String accountId, String line) {
@@ -390,6 +422,13 @@ public class BotService extends Service {
         // Stop existing process if any
         stopLocalBot(nick);
 
+        nickToAccountId.put(key, acc.getId());
+        connectedAccounts.put(key, false);
+
+        // Clear any old logs/chat from previous runs
+        clearAccountLogsAndChat(acc.getId());
+        clearAccountLogsAndChat(nick);
+
         if (acc.getPassword() == null || acc.getPassword().trim().isEmpty()) {
             appendLog(acc.getId(), "⚠️ [AGRak] توجه: رمز عبور برای این اکانت ثبت نشده است! لطفاً اکانت را ویرایش نمایید.");
         }
@@ -399,6 +438,10 @@ public class BotService extends Service {
         try {
             File botDir = new File(context.getFilesDir(), "bots/" + key);
             botDir.mkdirs();
+            File oldLog = new File(botDir, "RakSAMPClient.log");
+            if (oldLog.exists()) {
+                try { oldLog.delete(); } catch (Exception ignored) {}
+            }
             File scriptsDir = new File(botDir, "scripts");
             scriptsDir.mkdirs();
             File luaDir = new File(botDir, "lua");
@@ -557,12 +600,13 @@ public class BotService extends Service {
                     } catch (Exception ignored) {}
                     activeProcesses.remove(key);
                     connectedAccounts.remove(key);
+                    clearAccountLogsAndChat(acc.getId());
+                    clearAccountLogsAndChat(nick);
                     for (LogCallback cb : logCallbacks) {
                         try {
                             cb.onDisconnected(acc.getId());
                         } catch (Exception ignored) {}
                     }
-                    appendLog(acc.getId(), "[AGRak] وضعیت اکانت: قطع اتصال (آفلاین).");
                 }
             });
             readerThread.setDaemon(true);
@@ -593,8 +637,14 @@ public class BotService extends Service {
             t.interrupt();
         }
         String accId = nickToAccountId.get(key);
+        clearAccountLogsAndChat(nickname);
         if (accId != null) {
-            appendLog(accId, "[AGRak] ربات با موفقیت توسط کاربر متوقف شد.");
+            clearAccountLogsAndChat(accId);
+            for (LogCallback cb : logCallbacks) {
+                try {
+                    cb.onDisconnected(accId);
+                } catch (Exception ignored) {}
+            }
         }
     }
 

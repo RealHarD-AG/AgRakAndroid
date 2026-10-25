@@ -43,11 +43,18 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
             for (AccountModel acc : accounts) {
                 String key = acc.getNickname().toLowerCase();
                 boolean running = BotService.isBotRunning(acc.getNickname());
+                boolean connected = BotService.isAccountConnected(acc.getNickname());
 
-                if (running) {
+                if (connected) {
                     startingBots.remove(key);
                     if (acc.getStatus() != AccountModel.Status.ONLINE) {
                         acc.setStatus(AccountModel.Status.ONLINE);
+                        changed = true;
+                    }
+                } else if (running) {
+                    startingBots.remove(key);
+                    if (acc.getStatus() != AccountModel.Status.CONNECTING) {
+                        acc.setStatus(AccountModel.Status.CONNECTING);
                         changed = true;
                     }
                 } else {
@@ -62,6 +69,7 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                         startingBots.remove(key);
                         if (acc.getStatus() != AccountModel.Status.OFFLINE) {
                             acc.setStatus(AccountModel.Status.OFFLINE);
+                            BotService.clearAccountLogsAndChat(acc.getId());
                             changed = true;
                         }
                     }
@@ -153,9 +161,14 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                 boolean changed = false;
                 for (AccountModel acc : accounts) {
                     if (acc.getId().equals(accountId) || (acc.getNickname() != null && acc.getNickname().equalsIgnoreCase(accountId))) {
-                        if (acc.getStatus() == AccountModel.Status.ONLINE) {
-                            acc.setStatus(AccountModel.Status.CONNECTING);
+                        boolean running = BotService.isBotRunning(acc.getNickname());
+                        AccountModel.Status newStatus = running ? AccountModel.Status.CONNECTING : AccountModel.Status.OFFLINE;
+                        if (acc.getStatus() != newStatus) {
+                            acc.setStatus(newStatus);
                             changed = true;
+                        }
+                        if (!running) {
+                            BotService.clearAccountLogsAndChat(acc.getId());
                         }
                         break;
                     }
@@ -258,7 +271,10 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
                 Long startAttempt = startingBots.get(key);
                 if (startAttempt == null || (now - startAttempt) >= 7000) {
                     startingBots.remove(key);
-                    acc.setStatus(AccountModel.Status.OFFLINE);
+                    if (acc.getStatus() != AccountModel.Status.OFFLINE) {
+                        acc.setStatus(AccountModel.Status.OFFLINE);
+                        BotService.clearAccountLogsAndChat(acc.getId());
+                    }
                 }
             }
             String[] stats = BotService.getCachedStats(acc.getId());
@@ -393,6 +409,10 @@ public class MainActivity extends AppCompatActivity implements AccountAdapter.On
         acc.setStatus(AccountModel.Status.OFFLINE);
         saveAccounts();
         adapter.notifyDataSetChanged();
+
+        // Clear logs and chat so previous messages do not remain
+        BotService.clearAccountLogsAndChat(acc.getId());
+        BotService.clearAccountLogsAndChat(acc.getNickname());
 
         // Stop local native process
         BotService.stopLocalBot(acc.getNickname());
