@@ -21,9 +21,7 @@ public class ChatActivity extends AppCompatActivity {
     private TextView tvConsoleLogs, tvChatStatus;
     private ScrollView scrollConsole;
     private EditText etChatMessage;
-    private CheckBox cbFilterSmsAds;
 
-    private boolean filterSmsAds = true;
     private final android.os.Handler statusHandler = new android.os.Handler(android.os.Looper.getMainLooper());
     private final Runnable statusRunnable = new Runnable() {
         @Override
@@ -43,9 +41,6 @@ public class ChatActivity extends AppCompatActivity {
         public void onNewChat(String accId, String line) {
             if (accountId != null && accountId.equals(accId)) {
                 if (BotService.isStatsDumpLine(line)) {
-                    return;
-                }
-                if (filterSmsAds && BotService.isSmsAd(line)) {
                     return;
                 }
                 runOnUiThread(() -> {
@@ -122,18 +117,11 @@ public class ChatActivity extends AppCompatActivity {
         ImageButton btnBack = findViewById(R.id.btnBack);
         Button btnSend = findViewById(R.id.btnSendMessage);
 
-        cbFilterSmsAds = findViewById(R.id.cbFilterSmsAds);
-
         Button btnReconnect = findViewById(R.id.btnQuickReconnect);
 
         tvName.setText(accountNick != null ? accountNick : "اکانت");
         updateChatStatus();
         btnBack.setOnClickListener(v -> finish());
-
-        cbFilterSmsAds.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            filterSmsAds = isChecked;
-            refreshConsoleDisplay();
-        });
 
         // Initialize view
         refreshConsoleDisplay();
@@ -198,9 +186,6 @@ public class ChatActivity extends AppCompatActivity {
             for (String line : chat.split("\n")) {
                 if (line.trim().isEmpty()) continue;
                 if (BotService.isStatsDumpLine(line)) {
-                    continue;
-                }
-                if (filterSmsAds && BotService.isSmsAd(line)) {
                     continue;
                 }
                 ssb.append(ColorSpanHelper.parseSampColors(line)).append("\n");

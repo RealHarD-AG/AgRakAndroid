@@ -132,23 +132,12 @@
         android:paddingHorizontal="12dp">
 
         <TextView
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="💬 چت رسمی و زنده سرور"
             android:textColor="@color/text_white"
             android:textStyle="bold"
             android:textSize="12sp" />
-
-        <CheckBox
-            android:id="@+id/cbFilterSmsAds"
-            android:layout_width="wrap_content"
-            android:layout_height="34dp"
-            android:checked="true"
-            android:buttonTint="@color/accent_gold"
-            android:text="حذف تبلیغ/SMS"
-            android:textColor="#E0E0E0"
-            android:textSize="11sp" />
 
     </LinearLayout>
 
