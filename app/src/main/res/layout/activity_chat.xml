@@ -45,11 +45,12 @@
                     android:orientation="horizontal">
 
                     <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
+                        android:layout_width="20dp"
+                        android:layout_height="15dp"
                         android:layout_marginEnd="6dp"
-                        android:src="@drawable/ic_instagram_verified"
-                        android:contentDescription="تیک آبی" />
+                        android:adjustViewBounds="true"
+                        android:src="@drawable/ic_arsacia_game_logo"
+                        android:contentDescription="Arsacia Game Logo" />
 
                     <TextView
                         android:id="@+id/tvChatAccountName"
