@@ -1,17 +1,24 @@
-name: Build AGRak APK
+name: Build & Release AGRak
 
 on:
   push:
     branches: [ "main", "master" ]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -20,14 +27,88 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew || true
+    - name: Locate or Setup Android NDK
+      id: setup_ndk
+      run: |
+        if [ -d "$ANDROID_SDK_ROOT/ndk/25.2.9519653" ]; then
+          NDK_PATH="$ANDROID_SDK_ROOT/ndk/25.2.9519653"
+        elif [ -d "$ANDROID_SDK_ROOT/ndk" ] && [ "$(ls -A $ANDROID_SDK_ROOT/ndk 2>/dev/null)" ]; then
+          NDK_PATH=$(find "$ANDROID_SDK_ROOT/ndk" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)
+        elif [ -d "$ANDROID_HOME/ndk" ] && [ "$(ls -A $ANDROID_HOME/ndk 2>/dev/null)" ]; then
+          NDK_PATH=$(find "$ANDROID_HOME/ndk" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)
+        else
+          echo "Installing NDK via sdkmanager..."
+          echo y | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
+          NDK_PATH="$ANDROID_SDK_ROOT/ndk/25.2.9519653"
+        fi
+        echo "Found NDK at: $NDK_PATH"
+        echo "ANDROID_NDK_ROOT=$NDK_PATH" >> $GITHUB_ENV
+        echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
 
-    - name: Build APK with Gradle
-      run: ./gradlew assembleDebug --stacktrace
+    - name: Grant execute permission for scripts
+      run: |
+        chmod +x gradlew || true
+        chmod +x build_native.sh || true
 
-    - name: Upload APK Artifact
+    - name: Compile Native Libraksamp (.so) from Source
+      run: |
+        ./build_native.sh
+
+    - name: Build Release APK with Gradle
+      run: |
+        ./gradlew assembleRelease --stacktrace
+
+    - name: Stage Release Artifacts
+      run: |
+        cp app/build/outputs/apk/release/app-release.apk release_assets/AGRak.apk
+        cd release_assets
+        sha256sum AGRak.apk libraksamp-arm64-v8a.so libraksamp-armeabi-v7a.so libraksamp-android.zip > SHA256SUMS.txt
+        echo "Generated SHA256 checksums:"
+        cat SHA256SUMS.txt
+
+    - name: Upload Build Artifacts to Actions Storage
       uses: actions/upload-artifact@v4
       with:
-        name: AGRak-Release-v1.0.0
-        path: app/build/outputs/apk/debug/*.apk
+        name: AGRak-Release-Binaries
+        path: release_assets/*
+
+    - name: Determine Release Tag
+      id: release_info
+      run: |
+        if [ "${{ github.ref_type }}" = "tag" ]; then
+          TAG="${{ github.ref_name }}"
+        else
+          VER=$(grep 'versionName' app/build.gradle | head -n 1 | awk -F '"' '{print $2}')
+          TAG="v${VER}"
+        fi
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "Determined release tag: $TAG"
+
+    - name: Publish to GitHub Releases
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.release_info.outputs.tag }}
+        name: "AGRak Android ${{ steps.release_info.outputs.tag }}"
+        make_latest: true
+        draft: false
+        prerelease: false
+        body: |
+          ## 🚀 انتشار رسمی AGRak Android (${{ steps.release_info.outputs.tag }})
+          
+          > 🛡️ **تضمین شفافیت و عدم دستکاری (Full Open Source Transparency):**
+          > تمامی سورس‌کدهای مربوط به کتابخانه بومی در پوشه `RakSAMP-cli/` در همین ریپازیتوری در دسترس است. فایل نصبی APK و فایل‌های کتابخانه بومی `.so` در این ریلیز تماماً و از صفر توسط سرورهای پردازشی **GitHub Actions Workflow** و با حساب کاربری سیستمی ربات (`github-actions[bot]`) کامپایل و منتشر شده‌اند و هیچ‌گونه فایل باینری به‌صورت محلی یا توسط کاربر بارگذاری نشده است.
+          
+          ### 📥 دانلود مستقیم فایل‌ها (Direct Downloads):
+          - 📱 **[دانلود کلاینت نصبی اندروید (AGRak.apk)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/AGRak.apk)**
+          - ⚙️ **[کتابخانه بومی ARM 64-bit (libraksamp-arm64-v8a.so)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-arm64-v8a.so)**
+          - ⚙️ **[کتابخانه بومی ARM 32-bit (libraksamp-armeabi-v7a.so)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-armeabi-v7a.so)**
+          - 🗜️ **[مجموعه هر دو کتابخانه بومی (libraksamp-android.zip)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-android.zip)**
+          - 🔒 **[چک‌سام اعتبارسنجی (SHA256SUMS.txt)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/SHA256SUMS.txt)**
+        files: |
+          release_assets/AGRak.apk
+          release_assets/libraksamp-arm64-v8a.so
+          release_assets/libraksamp-armeabi-v7a.so
+          release_assets/libraksamp-android.zip
+          release_assets/SHA256SUMS.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

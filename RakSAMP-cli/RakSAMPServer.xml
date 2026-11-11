@@ -1,0 +1,8 @@
+<!--
+log_level:
+	0 / none   = silent (no Log / NetLog)
+	1 / info   = normal messages only (default)
+	2 / debug  = also network traces ([NET] / NetLog)
+-->
+<server name="RakSAMP Linux Server" max_players="32" port="7777" lagcomp="0" log_level="1">
+</server>

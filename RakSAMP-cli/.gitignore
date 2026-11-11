@@ -1,0 +1,68 @@
+# CMake & Build Output
+build/
+build_win32/
+build_win64/
+bin/
+out/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+
+# Object & Library Files
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Keep vendored LuaJIT win32 runtime (MoonLoader-compatible lua51.dll)
+!deps/luajit-prebuilt/
+!deps/luajit-prebuilt/**/*.dll
+!deps/luajit-prebuilt/**/*.a
+!deps/luajit-prebuilt/**/*.txt
+
+# Executables
+RakSAMPClient
+RakSAMPServer
+
+# Log Files
+*.log
+RakSAMPClient.log
+RakSAMPServer.log
+TextDraws.log
+RCON.log
+
+# Visual Studio / MSVC Build Outputs & Cache
+.vs/
+Debug/
+Release/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.ncb
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+ipch/
+
+# IDE & OS Editor Files
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+deps/luajit

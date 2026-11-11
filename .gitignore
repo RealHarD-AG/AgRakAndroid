@@ -13,4 +13,9 @@
 local.properties
 app/build/
 .gradle/
-local.properties
+
+# Native build artifacts & intermediate dirs
+/build_arm32/
+/build_arm64/
+/release_assets/
+app/src/main/jniLibs/**/*.so
