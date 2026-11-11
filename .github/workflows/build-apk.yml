@@ -93,17 +93,27 @@ jobs:
         draft: false
         prerelease: false
         body: |
-          ## 🚀 انتشار رسمی AGRak Android (${{ steps.release_info.outputs.tag }})
-          
-          > 🛡️ **تضمین شفافیت و عدم دستکاری (Full Open Source Transparency):**
-          > تمامی سورس‌کدهای مربوط به کتابخانه بومی در پوشه `RakSAMP-cli/` در همین ریپازیتوری در دسترس است. فایل نصبی APK و فایل‌های کتابخانه بومی `.so` در این ریلیز تماماً و از صفر توسط سرورهای پردازشی **GitHub Actions Workflow** و با حساب کاربری سیستمی ربات (`github-actions[bot]`) کامپایل و منتشر شده‌اند و هیچ‌گونه فایل باینری به‌صورت محلی یا توسط کاربر بارگذاری نشده است.
-          
-          ### 📥 دانلود مستقیم فایل‌ها (Direct Downloads):
-          - 📱 **[دانلود کلاینت نصبی اندروید (AGRak.apk)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/AGRak.apk)**
-          - ⚙️ **[کتابخانه بومی ARM 64-bit (libraksamp-arm64-v8a.so)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-arm64-v8a.so)**
-          - ⚙️ **[کتابخانه بومی ARM 32-bit (libraksamp-armeabi-v7a.so)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-armeabi-v7a.so)**
-          - 🗜️ **[مجموعه هر دو کتابخانه بومی (libraksamp-android.zip)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-android.zip)**
-          - 🔒 **[چک‌سام اعتبارسنجی (SHA256SUMS.txt)](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/SHA256SUMS.txt)**
+          ## AGRak Android ${{ steps.release_info.outputs.tag }}
+
+          ### 🛡️ Full Open Source Transparency & Automated Build
+          - **Native Library Sources:** Fully available in [`RakSAMP-cli/`](https://github.com/${{ github.repository }}/tree/main/RakSAMP-cli)
+          - **Automated CI/CD:** Built completely from source on GitHub Actions cloud runners.
+          - **Official Publisher:** Compiled and published automatically by `github-actions[bot]`.
+
+          ### 📥 Direct Downloads
+          * 📱 **[AGRak.apk](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/AGRak.apk)** - Android Installer
+          * ⚙️ **[libraksamp-arm64-v8a.so](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-arm64-v8a.so)** - ARM 64-bit library
+          * ⚙️ **[libraksamp-armeabi-v7a.so](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-armeabi-v7a.so)** - ARM 32-bit library
+          * 🗜️ **[libraksamp-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-android.zip)** - Both architectures archive
+          * 🔒 **[SHA256SUMS.txt](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/SHA256SUMS.txt)** - Verification checksums
+
+          ---
+          <div dir="rtl">
+
+          ### 🇮🇷 توضیحات فارسی
+          تمامی سورس‌کدهای کتابخانه بومی داخل پوشه `RakSAMP-cli` قرار دارند.
+          فایل نصبی و کتابخانه‌ها به صورت ۱۰۰٪ خودکار توسط گیت‌هاب اکشنز از مبدا کامپایل شده و هیچ فایل باینری دستی در مخزن یا ریلیزها قرار نگرفته است.
+          </div>
         files: |
           release_assets/AGRak.apk
           release_assets/libraksamp-arm64-v8a.so

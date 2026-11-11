@@ -6,41 +6,33 @@
 
 ---
 
-## 📥 دانلود برنامه و کتابخانه‌ها (Downloads & Releases)
+<div dir="rtl">
 
-برای دریافت آخرین نسخه رسمی کلاینت اندروید AGRak و کتابخانه‌های بومی کامپایل‌شده می‌توانید از پیوندهای مستقیم زیر استفاده نمایید:
+## 📥 دانلود برنامه و کتابخانه‌ها
+
+برای دریافت آخرین نسخه رسمی کلاینت اندروید AGRak و کتابخانه‌های بومی می‌توانید از لینک‌های مستقیم زیر استفاده کنید:
 
 * 📱 **[دانلود مستقیم آخرین نسخه برنامه (AGRak.apk)](https://github.com/RealHarD-AG/AgRakAndroid/releases/latest/download/AGRak.apk)**
-* ⚙️ **[دانلود کتابخانه ۶۴ بیتی ARM (libraksamp-arm64-v8a.so)](https://github.com/RealHarD-AG/AgRakAndroid/releases/latest/download/libraksamp-arm64-v8a.so)**
-* ⚙️ **[دانلود کتابخانه ۳۲ بیتی ARM (libraksamp-armeabi-v7a.so)](https://github.com/RealHarD-AG/AgRakAndroid/releases/latest/download/libraksamp-armeabi-v7a.so)**
-* 🗜️ **[دانلود فشرده هر دو معماری (libraksamp-android.zip)](https://github.com/RealHarD-AG/AgRakAndroid/releases/latest/download/libraksamp-android.zip)**
-* 📋 **[مشاهده صفحه انتشارات ریلیزها (All Releases)](https://github.com/RealHarD-AG/AgRakAndroid/releases)**
+* ⚙️ **[دانلود کتابخانه ۶۴ بیتی (libraksamp-arm64-v8a.so)](https://github.com/RealHarD-AG/AgRakAndroid/releases/latest/download/libraksamp-arm64-v8a.so)**
+* ⚙️ **[دانلود کتابخانه ۳۲ بیتی (libraksamp-armeabi-v7a.so)](https://github.com/RealHarD-AG/AgRakAndroid/releases/latest/download/libraksamp-armeabi-v7a.so)**
+* 🗜️ **[دانلود فشرده هر دو کتابخانه (libraksamp-android.zip)](https://github.com/RealHarD-AG/AgRakAndroid/releases/latest/download/libraksamp-android.zip)**
+* 📋 **[مشاهده صفحه انتشارات (Releases)](https://github.com/RealHarD-AG/AgRakAndroid/releases)**
 
 ---
 
-## 🛡️ شفافیت کامل و تضمین امنیت (Open Source & Security Transparency)
+## 🛡️ شفافیت کامل و تضمین امنیت سورس‌کد
 
 جهت رفع هرگونه ابهام یا نگرانی کاربران پیرامون فایل کتابخانه بومی (`libraksamp.so`):
 
-1. **دسترسی به تمامی سورس‌کدها:**  
-   تمامی سورس‌کدهای زبان C و C++ مربوط به موتور راک‌سمپ بدون هیچ‌گونه استثنا یا پنهان‌کاری در پوشه [`RakSAMP-cli/`](./RakSAMP-cli/) همین مخزن به صورت عمومی در دسترس و قابل بررسی، بازبینی و حسابرسی (Audit) امنیتی است.
-
-2. **کامپایل ۱۰۰٪ خودکار توسط گیت‌هاب (CI/CD):**  
-   هیچ فایل اجرایی یا باینری (`.apk` یا `.so`) توسط اشخاص یا به صورت دستی در این مخزن قرار نگرفته و نخواهد گرفت. فرآیند ساخت و کامپایل تمامی فایل‌های کتابخانه بومی و پکیج نصبی APK، خط به خط توسط [GitHub Actions Workflow](.github/workflows/build-apk.yml) و بر روی سرورهای ابری گیت‌هاب انجام شده و به طور خودکار با شناسه سیستمی ربات (`github-actions[bot]`) در بخش Releases قرار می‌گیرد.
+1. **سورس‌کد کامل و عمومی:** تمامی سورس‌کدهای زبان C و C++ موتور راک‌سمپ بدون استثنا در پوشه [`RakSAMP-cli/`](./RakSAMP-cli/) قرار دارند و برای عموم قابل بررسی و ارزیابی است.
+2. **کامپایل خودکار با سرور گیت‌هاب (CI/CD):** هیچ فایل باینری (`.apk` یا `.so`) به شکل دستی آپلود نمی‌شود. کلیه فایل‌ها توسط [GitHub Actions Workflow](.github/workflows/build-apk.yml) از صفر کامپایل و توسط ربات رسمی گیت‌هاب (`github-actions[bot]`) در بخش Releases قرار می‌گیرند.
 
 ---
 
-## 🏗️ راهنمای کامپایل محلی (Local Build)
+## 🏗️ راهنمای کامپایل دستی
 
-در صورت تمایل به کامپایل دستی روی سیستم خود:
+</div>
 
-### ۱. پیش‌نیازها
-* Android SDK (API 34)
-* Android NDK (r25c یا بالاتر)
-* CMake و Make
-* JDK 17
-
-### ۲. دستور کامپایل کتابخانه بومی و اپلیکیشن
 ```bash
 # کامپایل کتابخانه‌های بومی (arm64-v8a و armeabi-v7a)
 chmod +x build_native.sh
@@ -50,4 +42,7 @@ chmod +x build_native.sh
 chmod +x gradlew
 ./gradlew assembleRelease
 ```
-فایل نهایی در مسیر `app/build/outputs/apk/release/app-release.apk` تولید خواهد شد.
+
+<div dir="rtl">
+فایل خروجی در مسیر <code>app/build/outputs/apk/release/app-release.apk</code> ساخته می‌شود.
+</div>
