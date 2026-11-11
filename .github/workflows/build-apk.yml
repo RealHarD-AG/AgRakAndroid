@@ -1,116 +1,167 @@
 name: Build & Release AGRak
 
+# Branches and pull requests build artifacts; only new version tags publish releases.
 on:
   push:
-    branches: [ "main", "master" ]
-    tags:
-      - 'v*'
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    branches: [main, master]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: agrak-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  build-and-release:
+  build:
+    name: Build Android APK and native libraries
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v5
-      with:
-        fetch-depth: 0
+      - name: Checkout exact source revision
+        uses: actions/checkout@v5
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v5
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
 
-    - name: Locate or Setup Android NDK
-      id: setup_ndk
-      run: |
-        if [ -d "$ANDROID_SDK_ROOT/ndk/25.2.9519653" ]; then
-          NDK_PATH="$ANDROID_SDK_ROOT/ndk/25.2.9519653"
-        elif [ -d "$ANDROID_SDK_ROOT/ndk" ] && [ "$(ls -A $ANDROID_SDK_ROOT/ndk 2>/dev/null)" ]; then
-          NDK_PATH=$(find "$ANDROID_SDK_ROOT/ndk" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)
-        elif [ -d "$ANDROID_HOME/ndk" ] && [ "$(ls -A $ANDROID_HOME/ndk 2>/dev/null)" ]; then
-          NDK_PATH=$(find "$ANDROID_HOME/ndk" -maxdepth 1 -mindepth 1 | sort -V | tail -n 1)
-        else
-          echo "Installing NDK via sdkmanager..."
-          echo y | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --install "ndk;25.2.9519653"
-          NDK_PATH="$ANDROID_SDK_ROOT/ndk/25.2.9519653"
-        fi
-        echo "Found NDK at: $NDK_PATH"
-        echo "ANDROID_NDK_ROOT=$NDK_PATH" >> $GITHUB_ENV
-        echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+      - name: Install pinned Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          NDK_VERSION='25.2.9519653'
+          NDK_PATH="$ANDROID_SDK_ROOT/ndk/$NDK_VERSION"
+          if [ ! -f "$NDK_PATH/build/cmake/android.toolchain.cmake" ]; then
+            echo y | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION"
+          fi
+          test -f "$NDK_PATH/build/cmake/android.toolchain.cmake"
+          echo "ANDROID_NDK_ROOT=$NDK_PATH" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$NDK_PATH" >> "$GITHUB_ENV"
 
-    - name: Grant execute permission for scripts
-      run: |
-        chmod +x gradlew || true
-        chmod +x build_native.sh || true
+      - name: Check release tag matches app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_version="${GITHUB_REF_NAME#v}"
+          app_version="$(awk -F '"' '/^[[:space:]]*versionName / {print $2; exit}' app/build.gradle)"
+          if [ -z "$app_version" ] || [ "$expected_version" != "$app_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match app version $app_version"
+            exit 1
+          fi
 
-    - name: Compile Native Libraksamp (.so) from Source
-      run: |
-        ./build_native.sh
+      - name: Grant build script permissions
+        run: chmod +x gradlew build_native.sh
 
-    - name: Build Release APK with Gradle
-      run: |
-        ./gradlew assembleRelease --stacktrace
+      - name: Compile native libraries from source
+        run: ./build_native.sh
 
-    - name: Stage Release Artifacts
-      run: |
-        cp app/build/outputs/apk/release/app-release.apk release_assets/AGRak.apk
-        cd release_assets
-        sha256sum AGRak.apk libraksamp-arm64-v8a.so libraksamp-armeabi-v7a.so libraksamp-android.zip > SHA256SUMS.txt
-        echo "Generated SHA256 checksums:"
-        cat SHA256SUMS.txt
+      - name: Build release APK
+        run: ./gradlew assembleRelease --stacktrace
 
-    - name: Determine Release Tag
-      id: release_info
-      run: |
-        if [ "${{ github.ref_type }}" = "tag" ]; then
-          TAG="${{ github.ref_name }}"
-        else
-          VER=$(grep 'versionName' app/build.gradle | head -n 1 | awk -F '"' '{print $2}')
-          TAG="v${VER}"
-        fi
-        echo "tag=$TAG" >> $GITHUB_OUTPUT
-        echo "Determined release tag: $TAG"
+      - name: Stage artifacts and SHA-256 checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -m 0644 app/build/outputs/apk/release/app-release.apk release_assets/AGRak.apk
+          cd release_assets
+          sha256sum AGRak.apk libraksamp-arm64-v8a.so libraksamp-armeabi-v7a.so libraksamp-android.zip > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
 
-    - name: Publish to GitHub Releases (Official CLI)
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        TAG="${{ steps.release_info.outputs.tag }}"
-        
-        cat << 'EOF' > /tmp/release_notes.md
-        ## AGRak Android ${{ steps.release_info.outputs.tag }}
+      - name: Retain exact build outputs in GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: agrak-${{ github.sha }}
+          path: release_assets/
+          if-no-files-found: error
+          retention-days: 90
 
-        ### 🛡️ Full Open Source Transparency & Automated Build
-        - **Native Library Sources:** Fully available in [`RakSAMP-cli/`](https://github.com/${{ github.repository }}/tree/main/RakSAMP-cli)
-        - **Automated CI/CD:** Built completely from source on GitHub Actions cloud runners.
-        - **Official Publisher:** Compiled and published automatically by `github-actions[bot]`.
+  attest:
+    name: Attest build provenance
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
 
-        ### 📥 Direct Downloads
-        * 📱 **[AGRak.apk](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/AGRak.apk)** - Android Installer
-        * ⚙️ **[libraksamp-arm64-v8a.so](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-arm64-v8a.so)** - ARM 64-bit library
-        * ⚙️ **[libraksamp-armeabi-v7a.so](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-armeabi-v7a.so)** - ARM 32-bit library
-        * 🗜️ **[libraksamp-android.zip](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/libraksamp-android.zip)** - Both architectures archive
-        * 🔒 **[SHA256SUMS.txt](https://github.com/${{ github.repository }}/releases/download/${{ steps.release_info.outputs.tag }}/SHA256SUMS.txt)** - Verification checksums
+    steps:
+      - name: Download original build artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: agrak-${{ github.sha }}
+          path: release_assets
 
-        ---
-        <div dir="rtl">
+      - name: Verify checksums
+        working-directory: release_assets
+        run: sha256sum -c SHA256SUMS.txt
 
-        ### 🇮🇷 توضیحات فارسی
-        تمامی سورس‌کدهای کتابخانه بومی داخل پوشه `RakSAMP-cli` قرار دارند.
-        فایل نصبی و کتابخانه‌ها به صورت ۱۰۰٪ خودکار توسط گیت‌هاب اکشنز از مبدا کامپایل شده و هیچ فایل باینری دستی در مخزن یا ریلیزها قرار نگرفته است.
-        </div>
-        EOF
+      - name: Attest exact distributable files
+        uses: actions/attest@v4
+        with:
+          subject-path: 'release_assets/*'
 
-        if ! gh release view "$TAG" >/dev/null 2>&1; then
-          gh release create "$TAG" release_assets/* --title "AGRak Android $TAG" --notes-file /tmp/release_notes.md --latest
-        else
-          gh release edit "$TAG" --notes-file /tmp/release_notes.md --latest
-          gh release upload "$TAG" release_assets/* --clobber
-        fi
+  release:
+    name: Publish verified GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, attest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download original build artifact (do not rebuild)
+        uses: actions/download-artifact@v5
+        with:
+          name: agrak-${{ github.sha }}
+          path: release_assets
+
+      - name: Verify tag, commit, and artifact checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_commit="$(git rev-parse "refs/tags/${GITHUB_REF_NAME}^{commit}")"
+          checkout_commit="$(git rev-parse HEAD)"
+          if [ "$tag_commit" != "$GITHUB_SHA" ] || [ "$checkout_commit" != "$GITHUB_SHA" ]; then
+            echo "::error::Release tag, checkout, and workflow commit disagree"
+            exit 1
+          fi
+          cd release_assets
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Publish new release without replacing existing assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="$GITHUB_REF_NAME"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists; refusing to overwrite assets"
+            exit 1
+          fi
+
+          {
+            printf 'Built from commit [`%s`](%s/%s/commit/%s).\n\n' "${GITHUB_SHA:0:7}" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_SHA"
+            printf 'Build and verification: [%s](%s/%s/actions/runs/%s).\n\n' "$GITHUB_RUN_ID" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID"
+            printf 'Download `SHA256SUMS.txt` to verify the APK and native libraries.\n'
+          } > release_notes.md
+
+          gh release create "$TAG" release_assets/* \
+            --title "AGRak Android $TAG" \
+            --notes-file release_notes.md \
+            --verify-tag \
+            --latest
