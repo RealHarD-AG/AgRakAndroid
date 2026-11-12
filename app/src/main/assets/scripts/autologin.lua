@@ -24,6 +24,7 @@ end
 loadAccountConfig()
 
 local hasAttemptedLogin = false
+local isLoggedIn = false
 local isReconnecting = false
 local loginAttempts = 0
 local statsLoopActive = false
@@ -34,6 +35,7 @@ end
 
 function onDisconnect()
     hasAttemptedLogin = false
+    isLoggedIn = false
     isReconnecting = false
     loginAttempts = 0
     statsLoopActive = false
@@ -76,7 +78,8 @@ function onPrintLog(text)
 
     local lower = text:lower()
 
-    if lower:find("put to sleep") or lower:find("using raksamp") or lower:find("welcome ") then
+    if lower:find("put to sleep") or lower:find("using raksamp") or lower:find("welcome ") or lower:find("confirmed in sleep mode") or lower:find("you have been spawned") then
+        isLoggedIn = true
         print("[AutoLogin] >>> Account confirmed in Sleep Mode (اسلیپ فعال است).")
         startStatsLoop()
     end
@@ -123,6 +126,14 @@ end
 
 function onReceiveRPC(id, bs)
     if id == RPC_ScrDialogBox then
+        -- CRITICAL SECURITY PROTECTION:
+        -- Once the account is logged into the server, NEVER intercept or auto-answer ANY dialog with password!
+        -- This guarantees that in-game dialogs (/report, /helpme, /ad, /pm, bank, admin dialogs, etc.)
+        -- can NEVER leak or send the account password under any circumstances.
+        if isLoggedIn then
+            return
+        end
+
         local wDialogID = bs:readUInt16()
         local bDialogStyle = bs:readUInt8()
         local bTitleLength = bs:readUInt8()
@@ -148,11 +159,14 @@ function onReceiveRPC(id, bs)
             return false
         end
 
-        -- 3. Check for login dialog (Dialog ID 2 or 3 or title containing login, or password style 3)
-        local isLoginDialog = (wDialogID == 2 or wDialogID == 3 or titleLower:find("login") or titleLower:find("password") or titleLower:find("ramz") or titleLower:find("رمز") or titleLower:find("ورود") or bDialogStyle == 3)
+        -- 3. Check for login dialog ONLY before login:
+        -- Must explicitly contain login / password / ورود / رمز in the title.
+        -- NEVER match random dialog IDs or dialog style without title verification.
+        local isLoginTitle = titleLower:find("login") or titleLower:find("password") or titleLower:find("ramz") or titleLower:find("رمز") or titleLower:find("ورود")
+        local isLoginDialog = not isLoggedIn and isLoginTitle and (bDialogStyle == 3 or bDialogStyle == 1 or wDialogID == 2 or wDialogID == 3)
 
         if isLoginDialog and AUTO_LOGIN_ENABLED and PASSWORD ~= "" then
-            if loginAttempts < 3 then
+            if loginAttempts < 2 then
                 loginAttempts = loginAttempts + 1
                 hasAttemptedLogin = true
                 print(string.format("[AutoLogin] Login dialog (ID: %d, Attempt: %d) detected. Automatically sending password...", wDialogID, loginAttempts))

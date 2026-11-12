@@ -507,6 +507,7 @@ public class BotService extends Service {
             Thread readerThread = new Thread(() -> {
                 final Context appContext = context != null ? context.getApplicationContext() : null;
                 final AtomicBoolean hasShownConnectedToast = new AtomicBoolean(false);
+                final AtomicBoolean javaPasswordSubmitted = new AtomicBoolean(false);
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
@@ -544,6 +545,7 @@ public class BotService extends Service {
                                 || isMyKick;
 
                         if (isActuallyInServer) {
+                            javaPasswordSubmitted.set(true);
                             Boolean wasConnected = connectedAccounts.put(key, true);
                             if (wasConnected == null || !wasConnected) {
                                 for (LogCallback cb : logCallbacks) {
@@ -565,6 +567,7 @@ public class BotService extends Service {
                                 }
                             }
                         } else if (isDisconnectOrError) {
+                            javaPasswordSubmitted.set(false);
                             connectedAccounts.put(key, false);
                             updateNotification();
                             for (LogCallback cb : logCallbacks) {
@@ -577,16 +580,21 @@ public class BotService extends Service {
                             // It must never re-trigger if an error occurs or on auto-reconnect loops.
                         }
 
-                        // Auto-response in Java as backup if console prompts for password
-                        if (acc.isAutoLogin()) {
-                            if ((lower.contains("type response for [login]") || lower.contains("type response for"))
-                                    && acc.getPassword() != null && !acc.getPassword().isEmpty()) {
+                        // Auto-response in Java as backup ONLY during initial login (NEVER during in-game dialogs/commands)
+                        if (acc.isAutoLogin() && !javaPasswordSubmitted.get() && !isActuallyInServer && !Boolean.TRUE.equals(connectedAccounts.get(key))) {
+                            boolean isStrictLoginPrompt = lower.contains("type response for [login]")
+                                    || lower.contains("type response for [ورود]")
+                                    || lower.contains("type response for [رمز]")
+                                    || (lower.contains("type response for") && (lower.contains("login") || lower.contains("ورود") || lower.contains("رمز عبور") || lower.contains("password")));
+
+                            if (isStrictLoginPrompt && acc.getPassword() != null && !acc.getPassword().isEmpty()) {
+                                javaPasswordSubmitted.set(true);
                                 try {
                                     Thread.sleep(300);
                                     OutputStream os = process.getOutputStream();
                                     os.write((acc.getPassword() + "\n").getBytes(StandardCharsets.UTF_8));
                                     os.flush();
-                                    appendLog(acc.getId(), "[AGRak] 🔑 رمز عبور به صورت خودکار به دیالوگ لاگین ارسال شد.");
+                                    appendLog(acc.getId(), "[AGRak] 🔑 رمز عبور فقط برای دیالوگ ورود به سرور ارسال شد.");
 
                                     // Schedule stats query 15s after password (when in-game)
                                     scheduleCommand(key, "/stats", 15);

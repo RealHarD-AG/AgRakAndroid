@@ -8,10 +8,21 @@ android {
         applicationId "ir.arsacia.agrak"
         minSdk 21
         targetSdk 34
-        versionCode 34
-        versionName "2.8.21"
+        versionCode 35
+        versionName "2.8.22"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file('keystore/release.keystore')
+            storePassword 'agrakpassword123'
+            keyAlias 'agrak'
+            keyPassword 'agrakpassword123'
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
     }
 
     sourceSets {
@@ -28,12 +39,12 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
     lintOptions {
